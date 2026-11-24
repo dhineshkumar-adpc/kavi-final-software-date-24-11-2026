@@ -3308,7 +3308,7 @@ function renderSiteWorkspace(){
       '<div class="bc-items">'+b.items.map(function(i){ return esc(i.product)+' × '+i.qty+' @ ₹'+fmt(i.price)+'/pc/day'; }).join(', ')+'</div>'+
       (b.expected_return ? '<div style="font-size:11px;color:var(--wn);font-weight:700;margin-top:2px">⏰ Expected return: '+fdt(b.expected_return)+'</div>' : '')+
       '<div class="bc-bottom"><span class="badge b-mu">'+qty+' pcs'+(Number(b.loading)>0?' | ஏற்றுக்கூலி ₹'+fmt(b.loading):'')+'</span><span style="font-size:11px;color:var(--pri);font-weight:700">👁 View / PDF</span></div>'+
-      '</div>';
+      (window.edBtns?window.edBtns('so',site.id,idx):'')+'</div>';
   }).join('') || '<div class="empty">No OUT batches yet</div>';
 
   var inHist=(site.inBatches||[]).map(function(b,idx){ return {idx:idx,b:b}; }).slice().reverse().map(function(o){
@@ -3319,7 +3319,7 @@ function renderSiteWorkspace(){
       '<div class="bc-items">'+b.items.map(function(i){ return esc(i.product)+' × '+i.qty; }).join(', ')+(b.note?'<br><em>'+esc(b.note)+'</em>':'')+'</div>'+
       '<div class="bc-bottom"><span class="badge b-mu">'+qty+' pcs</span><span style="color:var(--tl-d);font-weight:700">Rent ₹'+fmt(b.rentCharged||0)+(Number(b.unloading)>0?' | இறக்குக்கூலி ₹'+fmt(b.unloading):'')+(Number(b.damage)>0?' | சேதாரம் ₹'+fmt(b.damage):'')+' | Paid ₹'+fmt(b.payment||0)+'</span></div>'+
       '<div style="text-align:right;font-size:11px;color:var(--tl);font-weight:700;margin-top:4px">👁 View / PDF</div>'+
-      '</div>';
+      (window.edBtns?window.edBtns('si',site.id,idx):'')+'</div>';
   }).join('') || '<div class="empty">No returns yet</div>';
 
   var siteBillsBox = '<div class="box sx" data-sx="bills">'+
@@ -3895,7 +3895,7 @@ function renderAllSitesBillsReturns(){
           '<div class="bc-name">'+esc(site.customer)+statusBadge+'</div><div class="bc-phone">📞 '+esc(site.phone)+'</div>'+
           '<div class="bc-items">'+b.items.map(function(i){ return esc(i.product)+' × '+i.qty+' @ ₹'+fmt(i.price)+'/pc/day'; }).join(', ')+'</div>'+
           '<div class="bc-bottom"><span class="badge b-mu">'+qty+' pcs'+(Number(b.loading)>0?' | ஏற்றுக்கூலி ₹'+fmt(b.loading):'')+'</span><span style="font-size:11px;color:var(--pri);font-weight:700">👁 View / PDF</span></div>'+
-        '</div>'});
+        (window.edBtns?window.edBtns('so',site.id,idx):'')+'</div>'});
     });
     (site.inBatches||[]).forEach(function(b,idx){
       var statusBadge = site.status==='OPEN' ? '<span class="badge b-wn" style="margin-left:6px">OPEN</span>' : '<span class="badge b-ok" style="margin-left:6px">CLOSED</span>';
@@ -3908,7 +3908,7 @@ function renderAllSitesBillsReturns(){
           '<div class="bc-name">'+esc(site.customer)+statusBadge+'</div><div class="bc-phone">📞 '+esc(site.phone)+'</div>'+
           '<div class="bc-items">'+b.items.map(function(i){ return esc(i.product)+' × '+i.qty; }).join(', ')+(b.note?'<br><em>'+esc(b.note)+'</em>':'')+'</div>'+
           '<div class="bc-bottom"><span class="badge b-mu">'+qty+' pcs</span><span style="color:var(--tl-d);font-weight:700">Rent ₹'+fmt(b.rentCharged||0)+(Number(b.unloading)>0?' | இறக்குக்கூலி ₹'+fmt(b.unloading):'')+(Number(b.damage)>0?' | சேதாரம் ₹'+fmt(b.damage):'')+' | Paid ₹'+fmt(b.payment||0)+'</span></div>'+
-        '</div>'});
+        (window.edBtns?window.edBtns('si',site.id,idx):'')+'</div>'});
     });
   });
   outRows.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
@@ -5107,7 +5107,7 @@ function rBC(b){
     (b.collected>0?'<div style="font-size:12px;color:#15803d;font-weight:700;margin:4px 0">💰 Payments collected so far: ₹'+Number(b.collected).toLocaleString('en-IN')+'</div>':'')+
     (b.status!=='RETURNED'?'<div style="margin:6px 0"><button class="btn bt" style="padding:6px 12px;font-size:12px" onclick="event.stopPropagation();settleBill(\''+b.billNo.replace(/'/g,"\\'")+'\',\'DISPATCH\',\''+esc(b.customer).replace(/'/g,"\\'")+'\',\''+esc(b.phone)+'\','+(Number(b.balance)||0)+')">💰 Collect Payment</button></div>':'')+
     '<div class="bc-bottom"><div style="font-size:12px;color:var(--mu)">⏱ '+b.days+'d/'+b.months+'mo | OUT: '+fdt(b.outDate)+'</div>'+
-    '<div class="bc-bal" style="color:'+(ip?'var(--ok)':'var(--er)')+'">'+(ip?'✅ PAID':'₹ '+Number(b.balance).toLocaleString('en-IN')+' pending')+'</div></div></div>';
+    '<div class="bc-bal" style="color:'+(ip?'var(--ok)':'var(--er)')+'">'+(ip?'✅ PAID':'₹ '+Number(b.balance).toLocaleString('en-IN')+' pending')+'</div></div>'+(window.edBtns?window.edBtns('dd',b.billNo):'')+'</div>';
 }
 function rRC(r){
   var fb=Number(r.finalBalance), isRef=fb<0, ip=r.status==='FULLY PAID'||fb<=0;
@@ -5122,7 +5122,7 @@ function rRC(r){
     '<div class="bc-items">📦 Returned: '+(is||'—')+'</div>'+
     (hasMiss?'<div style="margin:6px 0"><button class="btn bo" style="padding:5px 10px;font-size:12px" onclick="event.stopPropagation();viewSCMissingBill(\''+r.returnBillNo+'\')">⚠ Missing / Lost Bill</button></div>':'')+
     '<div class="bc-bottom"><div style="font-size:12px;color:var(--mu)">⏱ Actual: '+r.actualDays+'d/'+r.actualMonths+'mo | '+fdt(r.returnDate)+'</div>'+
-    '<div class="bc-bal" style="color:'+(isRef?'#7c3aed':ip?'var(--ok)':'var(--er)')+'">'+(isRef?'🟡 Refund ₹'+Math.abs(fb).toLocaleString('en-IN'):ip?'✅ PAID':'🔴 ₹'+fb.toLocaleString('en-IN')+' due')+'</div></div></div>';
+    '<div class="bc-bal" style="color:'+(isRef?'#7c3aed':ip?'var(--ok)':'var(--er)')+'">'+(isRef?'🟡 Refund ₹'+Math.abs(fb).toLocaleString('en-IN'):ip?'✅ PAID':'🔴 ₹'+fb.toLocaleString('en-IN')+' due')+'</div></div>'+(window.edBtns?window.edBtns('rr',r.returnBillNo):'')+'</div>';
 }
 function openBByNo(no){ curBill=_bcMap[no]; curMode='dispatch'; el('bill-content').innerHTML=mkHTML(curBill,false); el('bill-modal').style.display='block'; }
 function openRByNo(no){ curBill=_rcMap[no]; curMode='return'; el('bill-content').innerHTML=mkHTML(curBill,true); el('bill-modal').style.display='block'; }
@@ -8056,6 +8056,521 @@ function odBadge(){
     if(n){ badge.style.display='block'; badge.textContent=n>99?'99+':n; } else badge.style.display='none';
     var pnl=el('alert-panel'); if(pnl&&pnl.classList.contains('on')) renderAlertPanel(); }catch(e){}
 }
+
+</script>
+<script type="text/vbcs-app">
+// ══════════════════════════════════════════════════════════════════════════
+// EDIT / DELETE BILLS — Small Construction (Dispatch + Return) and Site Ledger (OUT + IN batches)
+// Every edit / delete reverses or re-applies STOCK, vehicle-rent trips, receipts and balances.
+// ══════════════════════════════════════════════════════════════════════════
+(function(){
+if(window.__edInit) return; window.__edInit=true;
+
+var $=function(id){ return document.getElementById(id); };
+function num(v){ return Number(v)||0; }
+function n0(v){ return Math.max(0,Number(v)||0); }
+function kOf(n){ return String(n||'').trim().toLowerCase(); }
+function E(s){ return esc(s); }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function g(id){ var e=$(id); return e?String(e.value).trim():''; }
+function gn(id){ return n0(g(id)); }
+function R(n){ return '₹'+fmt(Math.round((Number(n)||0)*100)/100); }
+
+// ── styles ───────────────────────────────────────────────────────────────
+var st=document.createElement('style');
+st.textContent=
+'.ed-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}'+
+'.ed-b{border:1px solid var(--bd);background:#fff;color:var(--pri-d);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}'+
+'.ed-b:hover{background:var(--soft)}'+
+'.ed-b.del{color:#b91c1c;border-color:#fecaca;background:#fef2f2}'+
+'.ed-b.del:hover{background:#fee2e2}'+
+'.ed-b.pri{background:#15803d;color:#fff;border-color:#15803d;padding:8px 18px;font-size:13px}'+
+'#ed-modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px 8px}'+
+'.ed-card{background:#fff;border-radius:14px;max-width:900px;width:100%;padding:18px 18px 14px;box-shadow:0 20px 60px rgba(0,0,0,.35)}'+
+'.ed-card h3{margin:0 0 4px;font-size:17px}'+
+'.ed-sub{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.5}'+
+'.ed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:12px}'+
+'.ed-grid label{display:block;font-size:11px;font-weight:700;color:var(--mu);margin-bottom:3px}'+
+'.ed-grid input,.ed-grid select,.ed-tbl input,.ed-tbl select{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;font-size:13px}'+
+'.ed-tbl{width:100%;border-collapse:collapse;margin-bottom:8px}'+
+'.ed-tbl th{font-size:11px;text-align:left;color:var(--mu);padding:4px}'+
+'.ed-tbl td{padding:3px;vertical-align:middle;font-size:13px}'+
+'.ed-sum{background:#f1f5f9;border-radius:10px;padding:10px 12px;font-size:13px;margin:8px 0;display:flex;gap:18px;flex-wrap:wrap}'+
+'.ed-sum b{font-weight:800}'+
+'.ed-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:10px}'+
+'.ed-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:10px}'+
+'.ed-sec{font-size:12px;font-weight:800;color:var(--pri-d);margin:10px 0 6px}';
+document.head.appendChild(st);
+
+// ── modal ────────────────────────────────────────────────────────────────
+function edClose(){ var m=$('ed-modal'); if(m&&m.parentNode) m.parentNode.removeChild(m); }
+function edOpen(title,sub,body,onSave,onInput){
+  edClose();
+  var m=document.createElement('div'); m.id='ed-modal';
+  m.innerHTML='<div class="ed-card"><h3>'+title+'</h3><div class="ed-sub">'+sub+'</div><div id="ed-body">'+body+'</div>'+
+    '<div class="ed-foot"><button type="button" class="ed-b" id="ed-cancel" style="padding:8px 16px;font-size:13px">Cancel</button>'+
+    (onSave?'<button type="button" class="ed-b pri" id="ed-save">💾 Save changes</button>':'')+'</div></div>';
+  document.body.appendChild(m);
+  $('ed-cancel').onclick=edClose;
+  if(onSave) $('ed-save').onclick=function(){ try{ onSave(); }catch(e){ console.error(e); toast('⚠ '+(e&&e.message?e.message:e),7000); } };
+  if(onInput){ var h=function(){ try{ onInput(); }catch(e){ console.error(e); } }; m.addEventListener('input',h); m.addEventListener('change',h); }
+  return m;
+}
+function field(label,id,val,type,extra){
+  return '<div><label>'+label+'</label><input id="'+id+'" type="'+(type||'text')+'" '+(type==='number'?'min="0" step="any" ':'')+(extra||'')+' value="'+E(val==null?'':val)+'"></div>';
+}
+function chargeFields(o){
+  return '<div class="ed-sec">💰 Charges</div><div class="ed-grid">'+
+    (o.loading!==undefined?field('ஏற்றுக்கூலி — Loading','ed-loading',o.loading||'','number'):'')+
+    (o.unloading!==undefined?field('இறக்குக்கூலி — Unloading','ed-unl',o.unloading||'','number'):'')+
+    (o.damage!==undefined?field('சேதார தொகை — Damage','ed-dmg',o.damage||'','number'):'')+
+    field('குறைவு தொகை — Less Amount (No on bill)','ed-disc',o.discount||'','number')+
+    field('தள்ளுபடி — Discount (on bill)','ed-less',o.less||'','number')+
+    field('கூடுதல் கட்டணம் — Additional (No on bill)','ed-extra',o.extra||'','number')+
+    field('கூடுதல் கட்டணம் 2 — Additional (on bill)','ed-extra2',o.extra2||'','number')+
+  '</div>';
+}
+
+// ── items editor ─────────────────────────────────────────────────────────
+function itemsTable(rows,o){
+  var h='<table class="ed-tbl"><thead><tr><th>Product</th>'+(o.rates?'<th>Rate/day</th><th>Type</th><th>Month rate</th>':'')+'<th style="width:90px">Qty</th>'+(o.hasMax?'<th>Limit</th>':'')+'</tr></thead><tbody>';
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+E(r.product)+'</td>';
+    if(o.rates){
+      h+='<td><input type="number" min="0" step="any" class="ed-it" data-i="'+i+'" data-f="price" value="'+(r.price||'')+'"></td>'+
+        '<td><select class="ed-it" data-i="'+i+'" data-f="calcType"><option value="daily"'+(r.calcType!=='monthly'?' selected':'')+'>Daily</option><option value="monthly"'+(r.calcType==='monthly'?' selected':'')+'>1 Month + Extra Days</option></select></td>'+
+        '<td><input type="number" min="0" step="any" class="ed-it" data-i="'+i+'" data-f="monthPrice" value="'+(r.monthPrice||'')+'"></td>';
+    }
+    h+='<td><input type="number" min="0" class="ed-it" data-i="'+i+'" data-f="qty" value="'+(r.qty||0)+'"></td>';
+    if(o.hasMax) h+='<td style="font-size:11px;color:var(--mu)">'+(r.max==null?'—':'max '+r.max)+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  if(o.add){
+    var opts=ALL_PRODUCTS.filter(function(p){ return !rows.some(function(r){ return kOf(r.product)===kOf(p.name); }); })
+      .map(function(p){ return '<option value="'+E(p.id)+'">'+E(p.name)+'</option>'; }).join('');
+    if(opts) h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><select id="ed-addsel" style="flex:1;padding:7px;border:1px solid var(--bd);border-radius:8px">'+opts+'</select><button type="button" class="ed-b" id="ed-addbtn">+ Add product</button></div>';
+  }
+  return h;
+}
+function collectRows(rows){
+  document.querySelectorAll('#ed-modal .ed-it').forEach(function(inp){
+    var r=rows[+inp.getAttribute('data-i')]; if(!r) return;
+    var f=inp.getAttribute('data-f');
+    r[f]=(f==='calcType')?inp.value:(f==='qty'?Math.max(0,Math.floor(Number(inp.value)||0)):n0(inp.value));
+  });
+}
+function drawItems(rows,o,onChange){
+  var box=$('ed-items'); if(!box) return;
+  box.innerHTML=itemsTable(rows,o);
+  var b=$('ed-addbtn');
+  if(b) b.onclick=function(){
+    collectRows(rows);
+    var p=ALL_PRODUCTS.find(function(x){ return String(x.id)===String($('ed-addsel').value); }); if(!p) return;
+    rows.push({product:p.name,qty:0,price:0,monthPrice:0,calcType:'daily',group:p.group||'MAIN',oldQty:0,max:null});
+    drawItems(rows,o,onChange); if(onChange) onChange();
+  };
+}
+function stockAvail(name){
+  var all=getStockData('MAIN').concat(getStockData('SUB'));
+  var s=all.find(function(x){ return kOf(x.name)===kOf(name); });
+  return s?s.available:Infinity;
+}
+function mapSaleItems(rows,days){
+  return rows.filter(function(r){ return r.qty>0; }).map(function(r){
+    var ct=r.calcType==='monthly'?'monthly':'daily';
+    return {product:r.product,qty:r.qty,price:num(r.price),month_price:num(r.monthPrice),calc_type:ct,rent_type:(ct==='monthly'?'1 month + extra days':'per day'),
+      amount:calcItemAmount(r.qty,days,num(r.price),num(r.monthPrice),ct),group_type:r.group||'MAIN'};
+  });
+}
+function checkRates(rows){
+  var bad=rows.find(function(r){ return r.qty>0 && (r.calcType==='monthly'?!(num(r.monthPrice)>0):!(num(r.price)>0)); });
+  if(bad) throw new Error(bad.product+'-க்கு rate போடுங்க');
+}
+
+// ── trips / receipts helpers ─────────────────────────────────────────────
+function tripsRemove(billNo){
+  (DB.customers||[]).forEach(function(c){ if(c.trips) c.trips=c.trips.filter(function(t){ return !(t.fromBill && t.billNo===billNo); }); });
+}
+function tripsRename(oldNo,newNo){
+  (DB.customers||[]).forEach(function(c){ (c.trips||[]).forEach(function(t){
+    if(t.fromBill && t.billNo===oldNo){ t.billNo=newNo; t.note=String(t.note||'').split(oldNo).join(newNo); }
+  }); });
+}
+function payLogFor(ref){ return (DB.paymentLog||[]).filter(function(p){ return p.ref===ref; }); }
+function sum(a,f){ return a.reduce(function(s,x){ return s+num(f(x)); },0); }
+
+function edRefresh(){
+  ['loadStock','loadPending','loadMissing','refreshAlerts','renderCtDash','clRender','loadMonthlyBills'].forEach(function(f){
+    try{ if(typeof window[f]==='function') window[f](); }catch(e){}
+  });
+  try{ var rb=$('results-box'); if(rb && rb.style.display!=='none') searchBills(true); }catch(e){}
+  try{ var rr=$('ret-results-box'); if(rr && rr.style.display!=='none') searchReturns(true); }catch(e){}
+  try{ if(window.curSiteId && findSiteById(curSiteId) && $('site-workspace')) renderSiteWorkspace(); }catch(e){}
+  try{ if($('asb-out-list')) renderAllSitesBillsReturns(); }catch(e){}
+  try{ var bm=$('bill-modal'); if(bm) bm.style.display='none'; }catch(e){}
+}
+function done(msg){ saveDB(); edClose(); edRefresh(); toast(msg,4000); }
+
+// ══════════════ SMALL CONSTRUCTION — DISPATCH BILL ══════════════
+window.edDelDispatch=function(billNo){
+  var X=ix(), s=X.salesByNo.get(billNo); if(!s){ toast('⚠ Bill not found'); return; }
+  var rets=X.retsByOrig.get(billNo)||[];
+  if(rets.length){ alert('இந்த bill ('+billNo+')-க்கு Return bill இருக்கு: '+rets.map(function(r){ return r.return_bill_no; }).join(', ')+'\n\nமுதல்ல அந்த Return bill-ஐ delete பண்ணுங்க, அப்புறம் இந்த bill-ஐ delete பண்ணலாம்.'); return; }
+  var pays=payLogFor(billNo);
+  var msg='🗑 Dispatch bill '+billNo+' ('+s.customer+') delete பண்ணலாமா?\n\n• Stock (OUT) திரும்ப சரியாகும்\n'+
+    (pays.length?'• இந்த bill-ன் '+pays.length+' payment receipt(s) ('+R(sum(pays,function(p){return p.amount;}))+') நீக்கப்படும்\n':'')+
+    (n0(s.vrent)>0?'• Vehicle rent trip நீக்கப்படும்\n':'')+'\nஇதை undo பண்ண முடியாது.';
+  if(!confirm(msg)) return;
+  (s.items||[]).forEach(function(it){ updateInv(it.product,it.group_type||'MAIN','out_qty',-num(it.qty)); });
+  DB.sales=DB.sales.filter(function(x){ return x!==s; });
+  DB.paymentLog=(DB.paymentLog||[]).filter(function(p){ return p.ref!==billNo; });
+  tripsRemove(billNo);
+  auditLog('DELETE_BILL',s.customer+' · '+billNo+' · ₹'+num(s.total),billNo);
+  done('🗑 Bill '+billNo+' deleted — stock updated');
+};
+window.edEditDispatch=function(billNo){
+  var X=ix(), s=X.salesByNo.get(billNo); if(!s){ toast('⚠ Bill not found'); return; }
+  var rets=X.retsByOrig.get(billNo)||[];
+  if(rets.length||s.status==='RETURNED') return edEditHeader('dispatch',s,rets);
+  var rows=(s.items||[]).map(function(it){ return {product:it.product,qty:num(it.qty),price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group_type||'MAIN',oldQty:num(it.qty)}; });
+  var coll=num(s.collected)+monthlyCollected(billNo);
+  var vrIn=(s.vrent_show!==false)?n0(s.vrent):0;
+  var o={rates:true,add:true};
+  var body='<div class="ed-grid">'+field('Customer name','ed-name',s.customer)+field('Phone','ed-phone',s.phone)+field('Address','ed-addr',s.address||'')+
+    field('OUT date','ed-out',toISODate(s.out_date),'date')+field('IN date (expected)','ed-in',toISODate(s.in_date),'date')+field('Advance paid','ed-adv',s.advance||'','number')+'</div>'+
+    '<div class="ed-sec">📦 Items</div><div id="ed-items"></div>'+
+    chargeFields({loading:s.loading,discount:s.discount,less:s.less,extra:s.extra,extra2:s.extra2})+
+    '<div class="ed-sum" id="ed-sum"></div>';
+  var calc=function(){
+    collectRows(rows);
+    var d=dur(g('ed-out'),g('ed-in')), total=0;
+    rows.forEach(function(r){ if(r.qty>0&&d.ok) total+=calcItemAmount(r.qty,d.days,num(r.price),num(r.monthPrice),r.calcType==='monthly'?'monthly':'daily'); });
+    var grand=Math.max(0,total+gn('ed-loading')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less'));
+    var bal=Math.max(0,grand-gn('ed-adv')-coll);
+    $('ed-sum').innerHTML='<span>Duration: <b>'+(d.ok?d.days+'d / '+d.months+'mo':'check dates')+'</b></span><span>Rental: <b>'+R(total)+'</b></span><span>Grand total: <b>'+R(grand)+'</b></span><span>Balance: <b>'+R(bal)+'</b></span>';
+    return {d:d,total:total,grand:grand,bal:bal};
+  };
+  edOpen('✏ Edit Dispatch Bill — '+E(billNo),'Qty / rate / dates / charges மாத்தலாம். Stock தானாக adjust ஆகும்.'+(coll>0?' · இதுவரை collect பண்ண payments: '+R(coll):'')+(vrIn>0?' · Vehicle rent '+R(vrIn)+' (மாற்ற முடியாது)':''),body,function(){
+    var c=calc(); collectRows(rows);
+    if(!g('ed-name')) throw new Error('Customer name போடுங்க');
+    if(!g('ed-phone')) throw new Error('Phone number போடுங்க');
+    if(!c.d.ok) throw new Error('IN date, OUT date-க்கு முன்னாடி இருக்க கூடாது (dates check பண்ணுங்க)');
+    var active=rows.filter(function(r){ return r.qty>0; });
+    if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (bill-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
+    checkRates(rows);
+    active.forEach(function(r){ if(r.qty>stockAvail(r.product)+num(r.oldQty)) throw new Error(r.product+': stock-ல '+(stockAvail(r.product)+num(r.oldQty))+' மட்டுமே இருக்கு'); });
+    (s.items||[]).forEach(function(it){ updateInv(it.product,it.group_type||'MAIN','out_qty',-num(it.qty)); });
+    active.forEach(function(r){ updateInv(r.product,r.group,'out_qty',r.qty); });
+    var hasMain=active.some(function(r){return r.group==='MAIN';}), hasSub=active.some(function(r){return r.group==='SUB';});
+    s.customer=g('ed-name'); s.phone=g('ed-phone'); s.address=g('ed-addr');
+    s.out_date=g('ed-out'); s.in_date=g('ed-in'); s.days=c.d.days; s.months=c.d.months;
+    s.advance=gn('ed-adv'); s.loading=gn('ed-loading'); s.discount=gn('ed-disc'); s.less=gn('ed-less'); s.extra=gn('ed-extra'); s.extra2=gn('ed-extra2');
+    s.total=c.total; s.balance=c.bal; s.status=c.bal>0?'PENDING':'PAID';
+    s.items=mapSaleItems(active,c.d.days);
+    s.calc_type=active.some(function(r){return r.calcType==='monthly';})?'monthly':'daily';
+    s.sheet_type=hasMain&&hasSub?'MAIN':hasSub?'SUB':'MAIN';
+    payLogFor(billNo).forEach(function(p){ p.customer=s.customer; p.phone=s.phone; p.address=s.address; });
+    auditLog('EDIT_BILL',s.customer+' · '+billNo+' · ₹'+c.total,billNo);
+    done('✅ Bill '+billNo+' updated');
+  },calc);
+  drawItems(rows,o,calc); calc();
+};
+// header-only edit (customer / phone / address) for bills that already have returns
+function edEditHeader(kind,rec,rets){
+  var no=kind==='dispatch'?rec.bill_no:rec.return_bill_no;
+  var body='<div class="ed-warn">இந்த bill-க்கு Return இருக்கு — அதனால Customer name / phone / address மட்டும் மாத்தலாம். Qty / rate மாத்தணும்னா முதல்ல Return bill-ஐ edit / delete பண்ணுங்க.</div>'+
+    '<div class="ed-grid">'+field('Customer name','ed-name',rec.customer)+field('Phone','ed-phone',rec.phone)+(kind==='dispatch'?field('Address','ed-addr',rec.address||''):'')+'</div>';
+  edOpen('✏ Edit Customer details — '+E(no),'',body,function(){
+    if(!g('ed-name')||!g('ed-phone')) throw new Error('Name & phone போடுங்க');
+    rec.customer=g('ed-name'); rec.phone=g('ed-phone'); if(kind==='dispatch') rec.address=g('ed-addr');
+    if(kind==='dispatch'){ (rets||[]).forEach(function(r){ r.customer=rec.customer; r.phone=rec.phone; }); }
+    payLogFor(no).forEach(function(p){ p.customer=rec.customer; p.phone=rec.phone; if(kind==='dispatch') p.address=rec.address; });
+    auditLog('EDIT_BILL',rec.customer+' · '+no+' (customer details)',no);
+    done('✅ Customer details updated');
+  });
+}
+
+// ══════════════ SMALL CONSTRUCTION — RETURN BILL ══════════════
+function retBlocked(r){
+  if(r.missingLog&&r.missingLog.length){ alert('இந்த Return bill-ல Missing / Lost settlement பண்ணியிருக்கு.\n\nமுதல்ல Missing tab → "Recent missing entries" ல அதை Undo பண்ணுங்க, அப்புறம் edit / delete பண்ணுங்க.'); return true; }
+  return false;
+}
+window.edDelReturn=function(rno){
+  var X=ix(), r=X.retByNo.get(rno); if(!r){ toast('⚠ Return bill not found'); return; }
+  if(retBlocked(r)) return;
+  var pays=payLogFor(rno);
+  var msg='🗑 Return bill '+rno+' ('+r.customer+') delete பண்ணலாமா?\n\n• Stock (IN) மறுபடி குறையும் — material திரும்ப "வெளியே" னு காட்டும்\n• Original bill '+r.original_bill_no+' மறுபடி pending ஆகும்\n'+
+    (pays.length?'• இந்த bill-ன் '+pays.length+' payment receipt(s) ('+R(sum(pays,function(p){return p.amount;}))+') நீக்கப்படும்\n':'')+'\nஇதை undo பண்ண முடியாது.';
+  if(!confirm(msg)) return;
+  (r.items||[]).forEach(function(it){ updateInv(it.product,it.group_type||'MAIN','in_qty',-num(it.qty)); });
+  DB.returns=DB.returns.filter(function(x){ return x!==r; });
+  DB.paymentLog=(DB.paymentLog||[]).filter(function(p){ return p.ref!==rno; });
+  tripsRemove(rno);
+  var left=DB.returns.filter(function(x){ return x.original_bill_no===r.original_bill_no; });
+  var o=DB.sales.find(function(s){ return s.bill_no===r.original_bill_no; });
+  if(o && !left.length){
+    var vrIn=(o.vrent_show!==false)?n0(o.vrent):0;
+    var grand=Math.max(0,num(o.total)+n0(o.loading)+n0(o.extra)+n0(o.extra2)+vrIn-n0(o.discount)-n0(o.less));
+    o.balance=Math.max(0,round2(grand-num(o.advance)-num(o.collected)-monthlyCollected(o.bill_no)));
+    o.status=o.balance>0?'PENDING':'PAID';
+  }
+  auditLog('DELETE_RETURN',r.customer+' · '+rno,rno);
+  done('🗑 Return bill '+rno+' deleted — stock & original bill restored');
+};
+window.edEditReturn=function(rno){
+  var X=ix(), r=X.retByNo.get(rno); if(!r){ toast('⚠ Return bill not found'); return; }
+  if(retBlocked(r)) return;
+  var orig=X.salesByNo.get(r.original_bill_no);
+  if(!orig){ alert('Original bill '+r.original_bill_no+' கிடைக்கல — edit பண்ண முடியாது. வேணும்னா Delete பண்ணுங்க.'); return; }
+  var out=billOutstanding(r.original_bill_no);
+  var rows=(r.items||[]).map(function(it){
+    var k=kOf(it.product), oldQ=num(it.qty), rec=out&&out.map[k];
+    return {product:it.product,qty:oldQ,price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group_type||'MAIN',oldQty:oldQ,max:rec?rec.outstanding+oldQ:null};
+  });
+  var settled=sum(payLogFor(rno),function(p){return p.amount;});
+  var prev=num(r.prev_advance), vrIn=(r.vrent_show!==false)?n0(r.vrent):0, loading=n0(r.loading);
+  var o={rates:true,hasMax:true};
+  var body='<div class="ed-grid">'+field('Customer name','ed-name',r.customer)+field('Phone','ed-phone',r.phone)+field('Return date','ed-ret',toISODate(r.return_date),'date')+'</div>'+
+    '<div class="ed-sec">📦 Returned items</div><div id="ed-items"></div>'+
+    chargeFields({unloading:r.unloading,damage:r.damage,discount:r.discount,less:r.less,extra:r.extra,extra2:r.extra2})+
+    '<div class="ed-grid">'+field('Payment collected on return (additional pay)','ed-addp',r.additional_pay||'','number')+field('Notes','ed-notes',r.notes||'')+'</div>'+
+    '<div class="ed-sum" id="ed-sum"></div>';
+  var calc=function(){
+    collectRows(rows);
+    var d=dur(orig.out_date,g('ed-ret')), total=0;
+    rows.forEach(function(x){ if(x.qty>0&&d.ok) total+=calcItemAmount(x.qty,d.days,num(x.price),num(x.monthPrice),x.calcType==='monthly'?'monthly':'daily'); });
+    var fb=round2(total+loading+gn('ed-unl')+gn('ed-dmg')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less')-prev-gn('ed-addp')-settled);
+    $('ed-sum').innerHTML='<span>OUT: <b>'+fdt(orig.out_date)+'</b></span><span>Actual: <b>'+(d.ok?d.days+'d / '+d.months+'mo':'check date')+'</b></span><span>Rental: <b>'+R(total)+'</b></span>'+
+      (prev>0?'<span>Advance/collected earlier: <b>'+R(prev)+'</b></span>':'')+(settled>0?'<span>Settled later: <b>'+R(settled)+'</b></span>':'')+
+      '<span>Final balance: <b style="color:'+(fb<0?'#7c3aed':fb<=0?'#15803d':'#b91c1c')+'">'+(fb<0?'Refund '+R(-fb):fb<=0?'Fully paid':R(fb))+'</b></span>';
+    return {d:d,total:total,fb:fb};
+  };
+  edOpen('✏ Edit Return Bill — '+E(rno),'Original bill: '+E(r.original_bill_no)+' · Qty / rate / date / charges மாத்தலாம். Stock தானாக adjust ஆகும்.',body,function(){
+    var c=calc(); collectRows(rows);
+    if(!g('ed-name')||!g('ed-phone')) throw new Error('Name & phone போடுங்க');
+    if(!c.d.ok) throw new Error('Return date, OUT date ('+fdt(orig.out_date)+')-க்கு முன்னாடி இருக்க கூடாது');
+    var active=rows.filter(function(x){ return x.qty>0; });
+    if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (bill-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
+    checkRates(rows);
+    rows.forEach(function(x){ if(x.max!=null && x.qty>x.max) throw new Error(x.product+': இன்னும் வெளியே '+x.max+' pcs மட்டுமே இருக்கு'); });
+    rows.forEach(function(x){ var dl=x.qty-x.oldQty; if(dl) updateInv(x.product,x.group,'in_qty',dl); });
+    r.customer=g('ed-name'); r.phone=g('ed-phone'); r.return_date=g('ed-ret');
+    r.actual_days=c.d.days; r.actual_months=c.d.months; r.total_rental=c.total;
+    r.unloading=gn('ed-unl'); r.damage=gn('ed-dmg'); r.discount=gn('ed-disc'); r.less=gn('ed-less'); r.extra=gn('ed-extra'); r.extra2=gn('ed-extra2');
+    r.additional_pay=gn('ed-addp'); r.notes=g('ed-notes');
+    r.final_balance=c.fb; r.status=c.fb<=0?'FULLY PAID':'BALANCE DUE';
+    r.items=mapSaleItems(active,c.d.days).map(function(i){ delete i.rent_type; return i; });
+    r.calc_type=active.some(function(x){return x.calcType==='monthly';})?'monthly':'daily';
+    payLogFor(rno).forEach(function(p){ p.customer=r.customer; p.phone=r.phone; });
+    auditLog('EDIT_RETURN',r.customer+' · '+rno+' · ₹'+c.total,rno);
+    done('✅ Return bill '+rno+' updated');
+  },calc);
+  drawItems(rows,o,calc); calc();
+};
+
+// ══════════════ SITE LEDGER — shared helpers ══════════════
+function siteProblems(site){
+  var s2=clone(site), t=computeSiteTotals(s2), exp={}, nm={}, out=[];
+  (s2.inBatches||[]).forEach(function(b){ (b.items||[]).forEach(function(it){ var k=kOf(it.product); exp[k]=(exp[k]||0)+num(it.qty); nm[k]=it.product; }); });
+  (s2.missingItems||[]).forEach(function(m){ var k=kOf(m.product); exp[k]=(exp[k]||0)+num(m.qty); nm[k]=m.product; });
+  Object.keys(exp).forEach(function(k){
+    var p=t.byProduct[k], dn=p?(num(p.returned)+num(p.missingQty)+num(p.lostQty)):0;
+    if(dn<exp[k]) out.push({k:k,msg:nm[k]+' — '+(exp[k]-dn)+' pcs'});
+  });
+  return out;
+}
+function newProblems(before,after){
+  var had={}; siteProblems(before).forEach(function(p){ had[p.k]=1; });
+  return siteProblems(after).filter(function(p){ return !had[p.k]; });
+}
+function returnBeforeOut(site){
+  var first={};
+  (site.outBatches||[]).forEach(function(b){ (b.items||[]).forEach(function(it){ var k=kOf(it.product); if(!first[k]||new Date(b.date)<new Date(first[k])) first[k]=b.date; }); });
+  for(var i=0;i<(site.inBatches||[]).length;i++){
+    var b=site.inBatches[i];
+    for(var j=0;j<(b.items||[]).length;j++){
+      var k=kOf(b.items[j].product);
+      if(first[k] && new Date(b.date)<new Date(first[k])) return site.site_no+'-IN-'+(i+1)+' ('+fdt(b.date)+') — '+b.items[j].product+' OUT date ('+fdt(first[k])+')-க்கு முன்னாடி வருது';
+    }
+  }
+  return '';
+}
+// rent stored on every IN batch is re-worked (FIFO, date order) after any edit / delete
+function recalcRent(site){
+  var lots={}, out=[], ev=[], rent={};
+  (site.outBatches||[]).forEach(function(b){ (b.items||[]).forEach(function(it){ out.push({date:b.date,product:it.product,qty:num(it.qty),price:it.price,monthPrice:mpOf(it),calcType:ctOf(it)}); }); });
+  out.sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  out.forEach(function(e){ var k=kOf(e.product); (lots[k]=lots[k]||[]).push({qty:e.qty,date:e.date,price:e.price,monthPrice:e.monthPrice,calcType:e.calcType}); });
+  (site.inBatches||[]).forEach(function(b,bi){ (b.items||[]).forEach(function(it){ ev.push({date:b.date,product:it.product,qty:num(it.qty),bi:bi,kind:'return'}); }); });
+  (site.missingItems||[]).forEach(function(m){ ev.push({date:m.markedDate,product:m.product,qty:num(m.qty),kind:'missing'}); });
+  ev.sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  ev.forEach(function(e){
+    var L=lots[kOf(e.product)]||[], remain=e.qty;
+    while(remain>0&&L.length){
+      var lot=L[0], take=Math.min(remain,lot.qty);
+      if(e.kind==='return') rent[e.bi]=(rent[e.bi]||0)+rentFor(lot,take,daysBetween(lot.date,e.date));
+      lot.qty-=take; remain-=take; if(lot.qty<=0) L.shift();
+    }
+  });
+  (site.inBatches||[]).forEach(function(b,bi){ b.rentCharged=Math.round(rent[bi]||0); });
+}
+// after deleting batch #idx the later batches move up one number (SITE-0001-OUT-3 → OUT-2) — keep trips / notes in step
+function renumberAfterDelete(site,type,idx,len){
+  var tag=type==='OUT'?'-OUT-':'-IN-';
+  for(var k=idx+1;k<len;k++){
+    var oldNo=site.site_no+tag+(k+1), newNo=site.site_no+tag+k;
+    tripsRename(oldNo,newNo);
+    (site.payments||[]).forEach(function(p){ if(p.notes) p.notes=String(p.notes).split(oldNo).join(newNo); });
+  }
+  (type==='OUT'?site.outBatches:site.inBatches).forEach(function(b,i){ b.id=i+1; });
+}
+function siteOf(id){ var s=findSiteById(id); if(!s) toast('⚠ Site not found'); return s; }
+function reopenIfClosed(site){ if(site.status!=='OPEN'){ site.status='OPEN'; delete site.closed_at; } }
+function closedNote(site){ return site.status!=='OPEN'?'\n• Site இப்போ CLOSED — மாற்றத்துக்கு அப்புறம் மறுபடி OPEN ஆகும் (தேவைன்னா மறுபடி Close பண்ணலாம்)':''; }
+
+// ══════════════ SITE LEDGER — OUT batch ══════════════
+window.edDelSiteOut=function(siteId,idx){
+  var site=siteOf(siteId); if(!site) return; var b=(site.outBatches||[])[idx]; if(!b){ toast('⚠ Batch not found'); return; }
+  var no=site.site_no+'-OUT-'+(idx+1);
+  var s2=clone(site); s2.outBatches.splice(idx,1);
+  var probs=newProblems(site,s2);
+  if(probs.length){ alert('இந்த OUT batch ('+no+') delete பண்ண முடியாது.\n\nஇதுக்கு பிறகு return / missing பதிவு பண்ணியிருக்கு, அதனால இந்த material-ஐ நீக்கினா கணக்கு தப்பாகும்:\n'+probs.map(function(p){ return '• '+p.msg; }).join('\n')+'\n\nமுதல்ல அந்த Return (IN) batch-ஐ delete / edit பண்ணுங்க.'); return; }
+  var adv=(site.payments||[]).find(function(p){ return b.advanceReceipt && p.receipt_no===b.advanceReceipt; });
+  var msg='🗑 '+no+' ('+site.customer+') delete பண்ணலாமா?\n\n• Items: '+(b.items||[]).map(function(i){ return i.product+' × '+i.qty; }).join(', ')+'\n• Stock (OUT) திரும்ப சரியாகும்\n'+
+    (adv?'• Advance '+R(adv.amount)+' ('+adv.receipt_no+') நீக்கப்படும்\n':'')+(n0(b.vrent)>0?'• Vehicle rent trip நீக்கப்படும்\n':'')+
+    '• பின்னால உள்ள OUT batch numbers ஒண்ணு குறையும்'+closedNote(site)+'\n\nஇதை undo பண்ண முடியாது.';
+  if(!confirm(msg)) return;
+  (b.items||[]).forEach(function(it){ updateInv(it.product,it.group||'MAIN','out_qty',-num(it.qty)); });
+  tripsRemove(no);
+  if(adv) site.payments=site.payments.filter(function(p){ return p!==adv; });
+  var len=site.outBatches.length;
+  site.outBatches.splice(idx,1);
+  renumberAfterDelete(site,'OUT',idx,len);
+  reopenIfClosed(site); recalcRent(site);
+  auditLog('DELETE_SITE_OUT',site.customer+' · '+no,no);
+  done('🗑 '+no+' deleted — stock updated');
+};
+window.edEditSiteOut=function(siteId,idx){
+  var site=siteOf(siteId); if(!site) return; var b=(site.outBatches||[])[idx]; if(!b){ toast('⚠ Batch not found'); return; }
+  var no=site.site_no+'-OUT-'+(idx+1);
+  var rows=(b.items||[]).map(function(it){ return {product:it.product,qty:num(it.qty),price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group||'MAIN',oldQty:num(it.qty)}; });
+  var advRec=(site.payments||[]).find(function(p){ return b.advanceReceipt && p.receipt_no===b.advanceReceipt; });
+  var vrIn=(b.vrentShow!==false)?n0(b.vrent):0;
+  var o={rates:true,add:true};
+  var body=(site.status!=='OPEN'?'<div class="ed-warn">Site CLOSED — save பண்ணா Site மறுபடி OPEN ஆகும்.</div>':'')+
+    '<div class="ed-grid">'+field('OUT date','ed-date',toISODate(b.date),'date')+field('Return date (expected)','ed-exp',toISODate(b.expected_return),'date')+field('Advance paid','ed-adv',(advRec?advRec.amount:(b.advance||''))||'','number')+'</div>'+
+    '<div class="ed-sec">📦 Items</div><div id="ed-items"></div>'+
+    chargeFields({loading:b.loading,discount:b.discount,less:b.less,extra:b.extra,extra2:b.extra2})+
+    '<div class="ed-sum" id="ed-sum"></div>';
+  var calc=function(){
+    collectRows(rows);
+    var dd=dur(g('ed-date'),g('ed-exp')), mul=dd.ok?dd.days:1, total=0;
+    rows.forEach(function(r){ if(r.qty>0) total+=calcItemAmount(r.qty,mul,num(r.price),num(r.monthPrice),r.calcType==='monthly'?'monthly':'daily'); });
+    var grand=Math.max(0,total+gn('ed-loading')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less'));
+    $('ed-sum').innerHTML='<span>Bill duration: <b>'+(dd.ok?dd.days+' day(s)':'open')+'</b></span><span>Rental: <b>'+R(total)+'</b></span><span>Grand: <b>'+R(grand)+'</b></span><span>Balance (this bill): <b>'+R(Math.max(0,grand-gn('ed-adv')))+'</b></span>';
+  };
+  edOpen('✏ Edit OUT batch — '+E(no)+' · '+E(site.customer),'Qty / rate / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.'+(vrIn>0?' · Vehicle rent '+R(vrIn)+' (மாற்ற முடியாது)':''),body,function(){
+    collectRows(rows);
+    var date=g('ed-date'); if(!date) throw new Error('OUT date போடுங்க');
+    var exp=g('ed-exp'); if(exp && !dur(date,exp).ok) throw new Error('Return date, OUT date-க்கு முன்னாடி இருக்க கூடாது');
+    var active=rows.filter(function(r){ return r.qty>0; });
+    if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (batch-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
+    checkRates(rows);
+    active.forEach(function(r){ var av=stockAvail(r.product)+num(r.oldQty); if(r.qty>av) throw new Error(r.product+': stock-ல '+av+' மட்டுமே இருக்கு'); });
+    var newItems=active.map(function(r){ var ct=r.calcType==='monthly'?'monthly':'daily'; return {product:r.product,qty:r.qty,price:num(r.price),month_price:num(r.monthPrice),calc_type:ct,group:r.group}; });
+    var s2=clone(site); var nb=s2.outBatches[idx];
+    nb.date=date; nb.items=newItems;
+    var pr=newProblems(site,s2);
+    if(pr.length) throw new Error('இந்த மாற்றத்தால return / missing கணக்கு தப்பாகும்: '+pr.map(function(p){return p.msg;}).join(', ')+' — முதல்ல Return batch-ஐ சரி பண்ணுங்க');
+    var rb=returnBeforeOut(s2); if(rb) throw new Error(rb);
+    // apply
+    (b.items||[]).forEach(function(it){ updateInv(it.product,it.group||'MAIN','out_qty',-num(it.qty)); });
+    newItems.forEach(function(it){ updateInv(it.product,it.group,'out_qty',it.qty); });
+    b.date=date; b.expected_return=exp; b.items=newItems;
+    b.loading=gn('ed-loading'); b.discount=gn('ed-disc'); b.less=gn('ed-less'); b.extra=gn('ed-extra'); b.extra2=gn('ed-extra2');
+    var adv=gn('ed-adv');
+    if(adv>0){
+      if(advRec){ advRec.amount=adv; advRec.date=date; }
+      else { var pr2=apiSettleSitePayment(site.id,adv,'Advance with '+no,date,'Cash'); if(pr2.status==='ok') b.advanceReceipt=pr2.receiptNo; }
+      b.advance=adv;
+    } else { if(advRec) site.payments=site.payments.filter(function(p){ return p!==advRec; }); b.advance=0; delete b.advanceReceipt; }
+    reopenIfClosed(site); recalcRent(site);
+    auditLog('EDIT_SITE_OUT',site.customer+' · '+no,no);
+    done('✅ '+no+' updated');
+  },calc);
+  drawItems(rows,o,calc); calc();
+};
+
+// ══════════════ SITE LEDGER — IN (return) batch ══════════════
+window.edDelSiteIn=function(siteId,idx){
+  var site=siteOf(siteId); if(!site) return; var b=(site.inBatches||[])[idx]; if(!b){ toast('⚠ Batch not found'); return; }
+  var no=site.site_no+'-IN-'+(idx+1);
+  var msg='🗑 '+no+' ('+site.customer+') delete பண்ணலாமா?\n\n• Items: '+(b.items||[]).map(function(i){ return i.product+' × '+i.qty; }).join(', ')+'\n• அந்த material மறுபடி "site-ல pending" னு காட்டும் (stock குறையும்)\n'+
+    (n0(b.payment)>0?'• இந்த return-ல வாங்கின payment '+R(b.payment)+' நீக்கப்படும்\n':'')+(n0(b.vrent)>0?'• Vehicle rent trip நீக்கப்படும்\n':'')+
+    '• பின்னால உள்ள IN batch numbers ஒண்ணு குறையும்'+closedNote(site)+'\n\nஇதை undo பண்ண முடியாது.';
+  if(!confirm(msg)) return;
+  (b.items||[]).forEach(function(it){ updateInv(it.product,it.group||'MAIN','in_qty',-num(it.qty)); });
+  tripsRemove(no);
+  var len=site.inBatches.length;
+  site.inBatches.splice(idx,1);
+  renumberAfterDelete(site,'IN',idx,len);
+  reopenIfClosed(site); recalcRent(site);
+  auditLog('DELETE_SITE_IN',site.customer+' · '+no,no);
+  done('🗑 '+no+' deleted — material pending-க்கு திரும்பியது');
+};
+window.edEditSiteIn=function(siteId,idx){
+  var site=siteOf(siteId); if(!site) return; var b=(site.inBatches||[])[idx]; if(!b){ toast('⚠ Batch not found'); return; }
+  var no=site.site_no+'-IN-'+(idx+1);
+  var t=computeSiteTotals(clone(site));
+  var rows=(b.items||[]).map(function(it){
+    var p=t.byProduct[kOf(it.product)], q=num(it.qty);
+    return {product:it.product,qty:q,group:it.group||'MAIN',oldQty:q,max:p?num(p.pending)+q:q};
+  });
+  var o={rates:false,hasMax:true};
+  var body=(site.status!=='OPEN'?'<div class="ed-warn">Site CLOSED — save பண்ணா Site மறுபடி OPEN ஆகும்.</div>':'')+
+    '<div class="ed-grid">'+field('Return date','ed-date',toISODate(b.date),'date')+field('Payment collected','ed-pay',b.payment||'','number')+field('Notes','ed-note',b.note||'')+'</div>'+
+    '<div class="ed-sec">📦 Returned items</div><div id="ed-items"></div>'+
+    chargeFields({unloading:b.unloading,damage:b.damage,discount:b.discount,less:b.less,extra:b.extra,extra2:b.extra2})+
+    '<div class="ed-sum" id="ed-sum">Rent தானாக மறுபடி கணக்கிடப்படும் (OUT date → return date).</div>';
+  edOpen('✏ Edit Return (IN) batch — '+E(no)+' · '+E(site.customer),'Return qty / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.'+(n0(b.vrent)>0?' · Vehicle rent '+R(b.vrent)+' (மாற்ற முடியாது)':''),body,function(){
+    collectRows(rows);
+    var date=g('ed-date'); if(!date) throw new Error('Return date போடுங்க');
+    var active=rows.filter(function(r){ return r.qty>0; });
+    if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (batch-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
+    rows.forEach(function(r){ if(r.max!=null && r.qty>r.max) throw new Error(r.product+': site-ல '+r.max+' pcs மட்டுமே pending இருக்கு'); });
+    var newItems=active.map(function(r){ return {product:r.product,qty:r.qty,group:r.group}; });
+    var s2=clone(site); var nb=s2.inBatches[idx]; nb.date=date; nb.items=newItems;
+    var pr=newProblems(site,s2);
+    if(pr.length) throw new Error('Qty அதிகம் — pending-ஐ விட: '+pr.map(function(p){return p.msg;}).join(', '));
+    var rb=returnBeforeOut(s2); if(rb) throw new Error(rb);
+    rows.forEach(function(r){ var dl=r.qty-r.oldQty; if(dl) updateInv(r.product,r.group,'in_qty',dl); });
+    b.date=date; b.items=newItems; b.note=g('ed-note'); b.payment=gn('ed-pay'); b.damage=gn('ed-dmg'); b.unloading=gn('ed-unl');
+    b.discount=gn('ed-disc'); b.less=gn('ed-less'); b.extra=gn('ed-extra'); b.extra2=gn('ed-extra2');
+    reopenIfClosed(site); recalcRent(site);
+    auditLog('EDIT_SITE_IN',site.customer+' · '+no,no);
+    done('✅ '+no+' updated');
+  });
+  drawItems(rows,o,null);
+};
+
+// ══════════════ buttons + click routing ══════════════
+window.edBtns=function(kind,a,b){
+  var at=(kind==='dd'||kind==='rr')?' data-id="'+E(a)+'"':' data-s="'+num(a)+'" data-i="'+num(b)+'"';
+  return '<div class="ed-act"><button type="button" class="ed-b" data-ed="'+kind+'-e"'+at+'>✏ Edit</button><button type="button" class="ed-b del" data-ed="'+kind+'-d"'+at+'>🗑 Delete</button></div>';
+};
+document.addEventListener('click',function(e){
+  var t=e.target&&e.target.closest?e.target.closest('[data-ed]'):null; if(!t) return;
+  e.stopPropagation(); e.preventDefault();
+  var a=t.getAttribute('data-ed'), id=t.getAttribute('data-id'), s=Number(t.getAttribute('data-s')), i=Number(t.getAttribute('data-i'));
+  try{
+    if(a==='dd-e') edEditDispatch(id); else if(a==='dd-d') edDelDispatch(id);
+    else if(a==='rr-e') edEditReturn(id); else if(a==='rr-d') edDelReturn(id);
+    else if(a==='so-e') edEditSiteOut(s,i); else if(a==='so-d') edDelSiteOut(s,i);
+    else if(a==='si-e') edEditSiteIn(s,i); else if(a==='si-d') edDelSiteIn(s,i);
+  }catch(err){ console.error(err); toast('⚠ '+(err&&err.message?err.message:err),6000); }
+},true);
+})();
 
 </script>
 

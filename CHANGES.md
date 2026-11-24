@@ -119,3 +119,13 @@ Tests: tests/sync_test.js, sync_test2.js (real host + client over HTTP), fuzz.js
 - NEW Advance Paid on Site OUT: saved as a site payment (receipt, "Advance with SITE-xxxx-OUT-n"), printed on the OUT bill (முன்பணம் / மீதி தொகை), kept when the bill is opened again from history, and counted in the site balance.
 - Site Return (IN) batch: charges now sit in a "💳 Payment Settlement" box like the Small Construction return (Unloading, Damage, Less, Discount, Additional 1 + 2, Vehicle Rent, Payment Collecting Amount). Vehicle rent is now counted in the live site-balance preview.
 - Removed the old partial "Bill Total" line from the OUT preview (replaced by the Bill Summary).
+
+## Update 13 — Edit / Delete bills (Small Construction + Site Ledger)
+Every bill card now has **✏ Edit** and **🗑 Delete** buttons (Small Construction → Bills / Returns search; Site Ledger → site "Bills" tab and the All-sites Bills / Returns feed).
+- **Dispatch bill – Edit**: customer / phone / address, OUT & IN date, advance, items (qty, rate, daily/monthly, add a product), loading, less, discount, additional charges. Rental, total and balance are recalculated; payments already collected and monthly collections are kept; stock (OUT) is adjusted and refuses more than what is in stock. If the bill already has a return only customer details can be edited.
+- **Dispatch bill – Delete**: stock OUT reversed, its receipts and vehicle-rent trip removed. Blocked while a Return bill exists (delete the return first).
+- **Return bill – Edit**: return date, returned qty (limited to what is still out), rates, unloading / damage / less / discount / additional, payment collected, notes. Rent and final balance recalculated (later "Settle Now" receipts are kept). Stock IN adjusted.
+- **Return bill – Delete**: stock IN reversed, receipts / trip removed, the original dispatch bill goes back to PENDING with its correct balance. Returns that have a Missing/Lost settlement must be undone from the Missing tab first.
+- **Site OUT batch – Edit / Delete** and **Site IN (return) batch – Edit / Delete**: stock adjusted, advance receipt / vehicle trip handled, rent stored on every IN batch re-worked, later batch numbers shift up (trips and notes renamed). Anything that would make the site books wrong (e.g. deleting an OUT batch that returns depend on, return qty above pending, return dated before OUT) is refused with a clear message. A CLOSED site is re-opened automatically when its bills are changed.
+- Vehicle-rent amount is not editable from these screens (shown in the editor).
+Test: `node tests/edit_delete.js` (44 checks: stock, balances, blocking rules, buttons).
