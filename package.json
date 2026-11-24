@@ -1,0 +1,21 @@
+{
+  "name": "garuda-construction-service",
+  "version": "1.0.0",
+  "description": "Garuda Construction Service - Rental & Billing Manager",
+  "main": "main.js",
+  "author": "Dhineshkumar Adpc Murugan Trader",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win dir --x64"
+  },
+  "devDependencies": { "electron": "22.3.27", "electron-builder": "24.13.3" },
+  "build": {
+    "appId": "com.garuda.constructionservice",
+    "productName": "Garuda Construction Service",
+    "copyright": "Copyright (C) 2026 Dhineshkumar Adpc Murugan Trader",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "index.html", "icon.ico"],
+    "extraResources": [{ "from": "build-res/netbird", "to": "netbird" }],
+    "win": { "target": ["dir"], "icon": "icon.ico", "requestedExecutionLevel": "asInvoker" }
+  }
+}
