@@ -1,0 +1,84 @@
+name: Build Microsoft Store package (MSIX/APPX)
+
+# Run this manually (Actions -> "Build Microsoft Store package" -> Run workflow).
+# The three values come from Partner Center -> your app -> Product management -> Product identity.
+# Microsoft signs the package for free when it is published through the Store, so there is no
+# certificate to buy and users get no Chrome / SmartScreen "dangerous" warning.
+on:
+  workflow_dispatch:
+    inputs:
+      identity_name:
+        description: 'Package/Identity/Name  (e.g. 12345YourName.GarudaConstructionService)'
+        required: true
+      publisher:
+        description: 'Package/Identity/Publisher  (e.g. CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)'
+        required: true
+      publisher_display_name:
+        description: 'Package/Properties/PublisherDisplayName'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  msix:
+    runs-on: windows-latest
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - run: mkdir -p build-res/netbird && npm install
+
+      - name: Create Store logos from assets/garuda-logo.png
+        run: |
+          python -m pip install pillow
+          mkdir -p build/appx
+          python - <<'PY'
+          from PIL import Image
+          src = Image.open('assets/garuda-logo.png').convert('RGBA')
+          def make(name, w, h):
+              c = Image.new('RGBA', (w, h), (255, 255, 255, 0))
+              s = int(min(w, h) * 0.9)
+              t = src.copy(); t.thumbnail((s, s))
+              c.paste(t, ((w - t.width) // 2, (h - t.height) // 2), t)
+              c.save('build/appx/' + name)
+          make('StoreLogo.png', 50, 50)
+          make('Square44x44Logo.png', 44, 44)
+          make('Square150x150Logo.png', 150, 150)
+          make('Wide310x150Logo.png', 310, 150)
+          make('SmallTile.png', 71, 71)
+          make('LargeTile.png', 310, 310)
+          PY
+
+      - name: Build APPX (unsigned - the Store signs it)
+        env:
+          IDENTITY_NAME: ${{ inputs.identity_name }}
+          PUBLISHER: ${{ inputs.publisher }}
+          PUBLISHER_DISPLAY: ${{ inputs.publisher_display_name }}
+        run: |
+          export CSC_IDENTITY_AUTO_DISCOVERY=false
+          npx electron-builder --win appx --x64 --publish never \
+            -c.appx.identityName="$IDENTITY_NAME" \
+            -c.appx.publisher="$PUBLISHER" \
+            -c.appx.publisherDisplayName="$PUBLISHER_DISPLAY" \
+            -c.appx.applicationId=GarudaConstructionService \
+            -c.appx.displayName="Garuda Construction Service" \
+            -c.appx.languages=en-US
+          ls dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Garuda-Construction-Service-Store-Package
+          path: dist/*.appx
+
+      - name: Attach package to a pre-release (direct download, Chrome shows Keep)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: store-package
+          name: Store package (upload this to Partner Center)
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          files: dist/*.appx
