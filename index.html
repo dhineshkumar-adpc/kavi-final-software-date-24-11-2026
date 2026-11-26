@@ -1779,10 +1779,34 @@ function updateInv(productName, group, field, delta){
       return;
     }
   }
+  // BUGFIX: the product is no longer in the stock list (renamed / deleted). A bill delete / edit only wants to
+  // REDUCE a counter here, so there is nothing to restore — never create an empty "ghost" stock row for it.
+  if(delta<=0) return;
   var tbl2 = group==='SUB' ? DB.invSub : DB.invMain;
   var nr = {id:nextInvId(), product:productName.trim(), total_stock:0, in_qty:0, out_qty:0};
   nr[field] = Math.max(0, delta);
   tbl2.push(nr);
+}
+
+// BUGFIX: renaming a product in the Stock tab used to change ONLY the stock row. Every old bill kept the old name, so
+// deleting / editing / returning those bills could no longer find the stock row (stock never updated + ghost rows).
+// Now the new name is written into every bill, return, site batch, missing entry and undo record.
+function renameProductEverywhere(oldName,newName){
+  var o=String(oldName||'').trim().toLowerCase(), n=0; if(!o) return 0;
+  function fix(obj,key){ if(obj && typeof obj[key]==='string' && obj[key].trim().toLowerCase()===o){ obj[key]=newName; n++; } }
+  function items(a,key){ (a||[]).forEach(function(i){ fix(i,key); }); }
+  (DB.sales||[]).forEach(function(x){ items(x.items,'product'); });
+  (DB.returns||[]).forEach(function(x){ items(x.items,'product'); items(x.missingLog,'product'); });
+  (DB.sites||[]).forEach(function(st){
+    (st.outBatches||[]).forEach(function(b){ items(b.items,'product'); });
+    (st.inBatches||[]).forEach(function(b){ items(b.items,'product'); });
+    items(st.missingItems,'product');
+  });
+  (DB.missUndo||[]).forEach(function(u){
+    items(u.inv,'name');
+    if(u.snap){ items(u.snap.items,'product'); items(u.snap.missingLog,'product'); }
+  });
+  return n;
 }
 
 function getStockData(sheet){
@@ -2896,8 +2920,10 @@ function saveStockItem(group, id){
   var tbl = group==='SUB' ? DB.invSub : DB.invMain;
   var row = tbl.find(function(r){ return r.id===id; });
   if(!row) return;
-  var dup = tbl.find(function(r){ return r.id!==id && (r.product||'').trim().toLowerCase()===name.toLowerCase(); });
+  var dup = DB.invMain.concat(DB.invSub).find(function(r){ return r!==row && (r.product||'').trim().toLowerCase()===name.toLowerCase(); });
   if(dup){ toast('⚠ Another item with this name already exists'); return; }
+  var oldName = row.product, renamed = (String(oldName||'')!==name);
+  if(renamed){ var nb=renameProductEverywhere(oldName,name); if(nb) toast('✏ Name updated in '+nb+' bill line(s) too'); }
   row.product = name;
   row.total_stock = total;
   row.out_qty = out;
@@ -2905,6 +2931,7 @@ function saveStockItem(group, id){
   saveDB();
   toast('✅ Stock item updated');
   loadStock();
+  if(renamed){ try{ loadPending(); }catch(e){} try{ if(typeof refreshAlerts==='function') refreshAlerts(); }catch(e){} }
   renderStockManage();
 }
 // Clears just this item's Out & In counters (e.g. to wipe a wrong manual entry) — Total Stock is untouched.
@@ -8201,7 +8228,7 @@ function payLogFor(ref){ return (DB.paymentLog||[]).filter(function(p){ return p
 function sum(a,f){ return a.reduce(function(s,x){ return s+num(f(x)); },0); }
 
 function edRefresh(){
-  ['loadStock','loadPending','loadMissing','refreshAlerts','renderCtDash','clRender','loadMonthlyBills'].forEach(function(f){
+  ['loadStock','renderStockManage','loadPending','loadMissing','refreshAlerts','renderCtDash','clRender','loadMonthlyBills'].forEach(function(f){
     try{ if(typeof window[f]==='function') window[f](); }catch(e){}
   });
   try{ var rb=$('results-box'); if(rb && rb.style.display!=='none') searchBills(true); }catch(e){}

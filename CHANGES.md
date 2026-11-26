@@ -129,3 +129,12 @@ Every bill card now has **✏ Edit** and **🗑 Delete** buttons (Small Construc
 - **Site OUT batch – Edit / Delete** and **Site IN (return) batch – Edit / Delete**: stock adjusted, advance receipt / vehicle trip handled, rent stored on every IN batch re-worked, later batch numbers shift up (trips and notes renamed). Anything that would make the site books wrong (e.g. deleting an OUT batch that returns depend on, return qty above pending, return dated before OUT) is refused with a clear message. A CLOSED site is re-opened automatically when its bills are changed.
 - Vehicle-rent amount is not editable from these screens (shown in the editor).
 Test: `node tests/edit_delete.js` (44 checks: stock, balances, blocking rules, buttons).
+
+## Update 6 — Stock not updating after bill delete / edit (bug fix)
+- ROOT CAUSE: renaming a product in the Stock tab changed only the stock row; every old bill kept the OLD name. Deleting / editing such a bill (or returning it) could no longer find the stock row, so stock did not change (e.g. stayed at 1290 instead of 1300) and an empty "ghost" stock row (total 0) was created.
+- FIXED: renaming a stock item now renames it inside every dispatch bill, return bill, Site Ledger OUT/IN batch, missing/lost entry and undo record.
+- FIXED: deleting / editing a bill can never create an empty ghost stock row any more (a reduce on a missing product is ignored).
+- FIXED: a stock item cannot be renamed to a name that already exists in Main OR Sub stock (earlier only the same list was checked).
+- Stock tab table now refreshes right after any bill edit / delete.
+- Tests: tests/fuzz_edit_delete.js (400 random create/edit/delete steps x 7 seeds, stock must equal the bills every step), tests/stock_rename.js. Test files no longer use a hard-coded path.
+- NOTE: if you already renamed a product BEFORE this update, the old bills still carry the old name. Open Stock tab, rename the item to the old name and Save, then rename it again to the new name — the new version now updates all old bills. Also delete any empty ghost row (total 0) in the Stock tab.
