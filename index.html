@@ -711,8 +711,8 @@ table.calc-tbl .badge{white-space:nowrap}
         <div id="od-form" style="display:none;background:#f7faff;border:1px solid var(--bd);border-radius:11px;padding:14px;margin-bottom:14px">
           <div style="font-weight:800;color:var(--pri-d);margin-bottom:10px" id="od-f-title">➕ Add Pending</div>
           <div class="g3">
-            <div class="fl"><label>Customer Name *</label><input id="od-f-name" list="cust-dl-name" placeholder="Full name" oninput="odAutofill('name')"></div>
-            <div class="fl"><label>Mobile Number *</label><input id="od-f-phone" list="cust-dl-phone" type="tel" placeholder="10-digit mobile" oninput="odAutofill('phone')"></div>
+            <div class="fl"><label>Customer Name *</label><input id="od-f-name" autocomplete="off" placeholder="Full name" oninput="odAutofill('name')"></div>
+            <div class="fl"><label>Mobile Number *</label><input id="od-f-phone" autocomplete="off" type="tel" placeholder="10-digit mobile" oninput="odAutofill('phone')"></div>
             <div class="fl"><label>Pending Amount (₹) *</label><input id="od-f-amt" type="number" min="0" placeholder="0"></div>
             <div class="fl" style="grid-column:span 2"><label>Address</label><input id="od-f-addr" placeholder="Address / site"></div>
             <div class="fl"><label>Pending Since (date)</label><input id="od-f-date" type="date"></div>
@@ -752,14 +752,14 @@ table.calc-tbl .badge{white-space:nowrap}
 
     <div class="box">
       <div class="bh">✏️ Edit / Update Stock <button class="rbtn" onclick="renderStockManage()">⟳ Refresh</button></div>
-      <div class="note">Product name, Total, Out and In are all editable now — fix any of them and tap 💾 Save. 🔄 Reset clears just that item's Out/In back to 0 (use it to wipe a wrong entry). Available is always auto-calculated as Total − Out + In.</div>
+      <div class="note">Product name and Total Stock can be edited (tap 💾 Save). <b>Out now</b> = pieces currently out with customers / sites; it is calculated automatically from your bills (dispatch, return, site) and stays correct when a bill is added, edited (+ / −) or deleted. Available = Total − Out now, so it can never be more than Total. If anything ever looks wrong, tap 🔄 Recalculate.</div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Product</th><th>Group</th><th>Total Stock</th><th>Out</th><th>In</th><th>Available</th><th></th></tr></thead>
+        <thead><tr><th>Product</th><th>Group</th><th>Total Stock</th><th>Out now</th><th>Available</th><th></th></tr></thead>
         <tbody id="stock-edit-tbody"></tbody>
       </table>
       </div>
-      <div class="acts"><button class="btn br" onclick="resetAllStockMovements()">🔄 Reset ALL Out/In (every item)</button></div>
+      <div class="acts"><button class="btn bg" onclick="recalcStockUI()">🔄 Recalculate Out / In from Bills</button></div>
     </div>
   </div>
 
@@ -910,6 +910,11 @@ table.calc-tbl .badge{white-space:nowrap}
     <div class="box">
       <div class="bh">🗄️ Full Data Backup</div>
       <div class="note">This app runs fully offline — all business data (rentals, customers, employees, attendance, payroll, expenses, income, maintenance, inventory) is stored only on this device's browser storage. Clearing browser/site data will remove it permanently. Export a backup regularly and keep the file safe.</div>
+      <div class="acts" style="justify-content:flex-start;margin-bottom:8px">
+        <button class="btn bt" onclick="vbOpenFolder('data')">📂 Open Data Folder</button>
+        <button class="btn bo" onclick="vbOpenFolder('backups')">📂 Open Backups Folder</button>
+      </div>
+      <div id="data-folder-path" style="font-size:12px;color:var(--mu);margin-bottom:10px;word-break:break-all"></div>
       <div class="acts" style="justify-content:flex-start">
         <button class="btn bg" onclick="exportBackup()">⬇ Download Full Backup (JSON)</button>
         <label class="btn bo" style="cursor:pointer">⬆ Restore from Backup<input type="file" id="backup-file" accept=".json" style="display:none" onchange="importBackup(this)"></label>
@@ -1808,6 +1813,76 @@ function renameProductEverywhere(oldName,newName){
   });
   return n;
 }
+
+// ── STOCK = TOTAL − OUT + IN, where OUT / IN always come from the bills ──
+// Every dispatch bill, return bill, Site OUT / IN batch and found-missing item is added up per product. Anything that
+// does not match (an old manual edit, a rename, an interrupted save ...) is corrected automatically on start-up, after
+// every bill edit / delete, and with the "Recalculate" button in the Stock tab.
+function __lostFromNotes(notes){
+  var lost={}, re=/\[Marked LOST([^\[\]]*)(?:\[PAID ON THE SPOT\])?: ([^\]]*)\]/g, m;
+  while((m=re.exec(String(notes||'')))){
+    m[2].split(' — ')[0].split(', ').forEach(function(t){ var i=t.lastIndexOf('×'); if(i<=0) return; var k=t.slice(0,i).trim().toLowerCase(); lost[k]=(lost[k]||0)+(Number(t.slice(i+1))||0); });
+  }
+  return lost;
+}
+function stockFromRecords(){
+  var map=new Map(), orphans={};
+  function acc(name,group,field,q){
+    q=Number(q)||0; if(!q) return;
+    var order=group==='SUB'?[DB.invSub,DB.invMain]:[DB.invMain,DB.invSub], row=null;
+    for(var i=0;i<order.length&&!row;i++) row=findInvRow(order[i],name);
+    if(!row){ var k=String(name||'').trim(); orphans[k]=(orphans[k]||0)+q; return; }
+    var o=map.get(row); if(!o){ o={out:0,inn:0}; map.set(row,o); } o[field]+=q;
+  }
+  (DB.sales||[]).forEach(function(x){ (x.items||[]).forEach(function(i){ acc(i.product,i.group_type,'out',i.qty); }); });
+  (DB.returns||[]).forEach(function(x){
+    var lost=__lostFromNotes(x.notes);   // pieces written off as LOST were never put back into stock
+    (x.items||[]).forEach(function(i){ var k=String(i.product||'').trim().toLowerCase(), q=Number(i.qty)||0, l=Math.min(q,lost[k]||0); if(l) lost[k]-=l; acc(i.product,i.group_type,'inn',q-l); });
+  });
+  (DB.sites||[]).forEach(function(st){
+    (st.outBatches||[]).forEach(function(b){ (b.items||[]).forEach(function(i){ acc(i.product,i.group,'out',i.qty); }); });
+    (st.inBatches||[]).forEach(function(b){ (b.items||[]).forEach(function(i){ acc(i.product,i.group,'inn',i.qty); }); });
+    (st.missingItems||[]).forEach(function(m){ if(m.resolved&&m.chargeType!=='fixed') acc(m.product,m.group,'inn',m.qty); });
+  });
+  return {map:map,orphans:orphans};
+}
+function reconcileStock(){
+  var rec=stockFromRecords(), changes=[];
+  DB.invMain.concat(DB.invSub).forEach(function(r){
+    var x=rec.map.get(r)||{out:0,inn:0}, po=Number(r.out_qty)||0, pi=Number(r.in_qty)||0;
+    if(po!==x.out||pi!==x.inn){ changes.push({product:r.product,oldOut:po,oldIn:pi,newOut:x.out,newIn:x.inn}); r.out_qty=x.out; r.in_qty=x.inn; }
+  });
+  if(changes.length){
+    try{ auditLog('STOCK_RECALC',changes.length+' item(s): '+changes.slice(0,12).map(function(c){ return c.product+' out '+c.oldOut+'→'+c.newOut+', in '+c.oldIn+'→'+c.newIn; }).join(' | ')); }catch(e){}
+    saveDB();
+  }
+  return {changes:changes,orphans:rec.orphans};
+}
+// Undoing / reducing a RETURN puts pieces back "out". If those pieces were meanwhile given out again on another bill, the
+// stock would go past Total (Out now > Total). This returns the list of products that would overflow (empty = safe).
+function stockGuard(list){
+  var agg=new Map(), bad=[];
+  (list||[]).forEach(function(x){
+    var q=Number(x.add)||0; if(q<=0) return;
+    var order=x.group==='SUB'?[DB.invSub,DB.invMain]:[DB.invMain,DB.invSub], row=null;
+    for(var i=0;i<order.length&&!row;i++) row=findInvRow(order[i],x.name);
+    if(row) agg.set(row,(agg.get(row)||0)+q);
+  });
+  agg.forEach(function(add,row){
+    var total=Number(row.total_stock)||0, now=Math.max(0,(Number(row.out_qty)||0)-(Number(row.in_qty)||0));
+    if(now+add>total) bad.push('• '+row.product+' — Total '+total+', இப்போ வெளியே '+now+', இதை மாத்தினா '+(now+add)+' ஆகிடும்');
+  });
+  return bad;
+}
+function stockGuardMsg(bad){ return 'Stock தாண்டிடும் — மாத்த முடியாது:\n'+bad.join('\n')+'\n\nஇந்த material ஏற்கனவே வேற bill-ல வெளியே போயிருக்கு. முதல்ல அந்த bill-ஐ Return / Delete பண்ணுங்க.'; }
+function recalcStockUI(){
+  var r=reconcileStock(), orp=Object.keys(r.orphans);
+  toast(r.changes.length?('✅ Stock corrected for '+r.changes.length+' item(s) from the bills'):'✅ Stock already matches all bills', 5000);
+  if(orp.length) alert('⚠ These product names are on old bills but NOT in the Stock list (renamed / deleted?):\n\n'+orp.slice(0,15).join('\n')+'\n\nAdd them in the Stock tab (or rename a stock item to that name) so their pieces are counted.');
+  try{ loadStock(); renderStockManage(); loadPending(); }catch(e){}
+}
+var __stockFix=null; try{ __stockFix=reconcileStock(); }catch(e){ console.error('stock reconcile failed',e); }
+window.addEventListener('load',function(){ try{ if(__stockFix&&__stockFix.changes.length) setTimeout(function(){ toast('✅ Stock matched with bills — '+__stockFix.changes.length+' item(s) corrected',6000); try{ loadStock(); }catch(e){} },800); }catch(e){} });
 
 function getStockData(sheet){
   var tbl = sheet==='SUB' ? DB.invSub : DB.invMain;
@@ -2836,8 +2911,7 @@ function renderStockGrid(targetId, allStock){
       '<div class="sc-name">'+s.name+'</div>'+
       '<div class="sc-avail '+cls+'">'+s.available+' <span style="font-size:12px;font-weight:400">pcs</span></div>'+
       '<div class="sc-meta" style="margin-top:4px">Total: '+s.total+' pcs</div>'+
-      (s.out>0?'<div style="font-size:11px;color:var(--er);margin-top:2px">⬆ Out: '+s.out+' pcs</div>':'')+
-      (s.in_qty>0?'<div style="font-size:11px;color:var(--ok);margin-top:1px">⬇ In: '+s.in_qty+' pcs</div>':'')+
+      (s.out>0?'<div style="font-size:11px;color:var(--er);margin-top:2px">⬆ Out now: '+s.out+' pcs</div>':'')+
       '</div>';
   }).join('');
 }
@@ -2873,19 +2947,17 @@ function addStockItem(){
 }
 function stockRowHTML(r, group){
   var total=Number(r.total_stock)||0, out=Number(r.out_qty)||0, inn=Number(r.in_qty)||0;
-  var avail=Math.max(0,total-out+inn);
+  var now=Math.max(0,out-inn), avail=Math.max(0,total-now);
   var rid=group+'-'+r.id;
   var numStyle='width:70px;padding:6px 8px;font-size:12.5px;border:1px solid var(--bd);border-radius:6px';
   return '<tr>'+
     '<td><input id="se-name-'+rid+'" value="'+esc(r.product)+'" style="width:170px;padding:6px 8px;font-size:12.5px;border:1px solid var(--bd);border-radius:6px"></td>'+
     '<td>'+(group==='SUB'?'Sub':'Main')+'</td>'+
     '<td><input id="se-total-'+rid+'" type="number" min="0" value="'+total+'" style="'+numStyle+'"></td>'+
-    '<td><input id="se-out-'+rid+'" type="number" min="0" value="'+out+'" style="'+numStyle+';color:var(--er)"></td>'+
-    '<td><input id="se-in-'+rid+'" type="number" min="0" value="'+inn+'" style="'+numStyle+';color:var(--ok)"></td>'+
+    '<td style="font-weight:700;color:var(--er)" id="se-out-'+rid+'" title="Pieces currently out with customers / sites (from bills)">'+now+(now>total?' ⚠':'')+'</td>'+
     '<td style="font-weight:700" id="se-avail-'+rid+'">'+avail+'</td>'+
     '<td style="white-space:nowrap">'+
       '<button class="btn bo" style="padding:5px 9px;font-size:11px" onclick="saveStockItem(\''+group+'\','+r.id+')">💾 Save</button> '+
-      '<button class="btn br" style="padding:5px 9px;font-size:11px" onclick="resetStockItem(\''+group+'\','+r.id+')" title="Reset this item\'s Out &amp; In back to 0">🔄 Reset</button> '+
       '<button class="btn br" style="padding:5px 9px;font-size:11px" onclick="deleteStockItem(\''+group+'\','+r.id+')">🗑</button>'+
     '</td></tr>';
 }
@@ -2893,41 +2965,35 @@ function renderStockManage(){
   var tb=el('stock-edit-tbody'); if(!tb) return;
   var rows = DB.invMain.map(function(r){ return stockRowHTML(r,'MAIN'); })
     .concat(DB.invSub.map(function(r){ return stockRowHTML(r,'SUB'); }));
-  tb.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="7" style="color:var(--mu);font-size:12px;padding:10px">No stock items yet.</td></tr>';
-  // live-recalculate the Available column as Total/Out/In inputs change, without needing Save first
-  rows.forEach(function(){});
-  var allTbl = DB.invMain.map(function(r){return {r:r,group:'MAIN'};}).concat(DB.invSub.map(function(r){return {r:r,group:'SUB'};}));
-  allTbl.forEach(function(x){
-    var rid=x.group+'-'+x.r.id;
-    ['se-total-'+rid,'se-out-'+rid,'se-in-'+rid].forEach(function(inId){
-      var inp=el(inId); if(!inp) return;
-      inp.addEventListener('input', function(){
-        var t=Number(el('se-total-'+rid).value)||0, o=Number(el('se-out-'+rid).value)||0, i=Number(el('se-in-'+rid).value)||0;
-        var av=el('se-avail-'+rid); if(av) av.textContent = Math.max(0, t-o+i);
-      });
+  tb.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6" style="color:var(--mu);font-size:12px;padding:10px">No stock items yet.</td></tr>';
+  // live-recalculate Available while the Total box is being edited
+  DB.invMain.map(function(r){return {r:r,group:'MAIN'};}).concat(DB.invSub.map(function(r){return {r:r,group:'SUB'};})).forEach(function(x){
+    var rid=x.group+'-'+x.r.id, inp=el('se-total-'+rid); if(!inp) return;
+    inp.addEventListener('input', function(){
+      var now=Math.max(0,(Number(x.r.out_qty)||0)-(Number(x.r.in_qty)||0)), av=el('se-avail-'+rid);
+      if(av) av.textContent = Math.max(0, (Number(inp.value)||0)-now);
     });
   });
 }
 function saveStockItem(group, id){
   var rid=group+'-'+id;
-  var nameInp=el('se-name-'+rid), totalInp=el('se-total-'+rid), outInp=el('se-out-'+rid), inInp=el('se-in-'+rid);
-  if(!nameInp||!totalInp||!outInp||!inInp) return;
+  var nameInp=el('se-name-'+rid), totalInp=el('se-total-'+rid);
+  if(!nameInp||!totalInp) return;
   var name=nameInp.value.trim();
   var total=Math.max(0, Number(totalInp.value)||0);
-  var out=Math.max(0, Number(outInp.value)||0);
-  var inn=Math.max(0, Number(inInp.value)||0);
   if(!name){ toast('⚠ Product name cannot be empty'); return; }
   var tbl = group==='SUB' ? DB.invSub : DB.invMain;
   var row = tbl.find(function(r){ return r.id===id; });
   if(!row) return;
+  var stillOutNow=Math.max(0,(Number(row.out_qty)||0)-(Number(row.in_qty)||0));
+  if(total<stillOutNow){ toast('⚠ Total stock cannot be less than the '+stillOutNow+' pcs that are currently out'); return; }
   var dup = DB.invMain.concat(DB.invSub).find(function(r){ return r!==row && (r.product||'').trim().toLowerCase()===name.toLowerCase(); });
   if(dup){ toast('⚠ Another item with this name already exists'); return; }
   var oldName = row.product, renamed = (String(oldName||'')!==name);
   if(renamed){ var nb=renameProductEverywhere(oldName,name); if(nb) toast('✏ Name updated in '+nb+' bill line(s) too'); }
   row.product = name;
   row.total_stock = total;
-  row.out_qty = out;
-  row.in_qty = inn;
+  reconcileStock();
   saveDB();
   toast('✅ Stock item updated');
   loadStock();
@@ -2935,27 +3001,8 @@ function saveStockItem(group, id){
   renderStockManage();
 }
 // Clears just this item's Out & In counters (e.g. to wipe a wrong manual entry) — Total Stock is untouched.
-function resetStockItem(group, id){
-  var tbl = group==='SUB' ? DB.invSub : DB.invMain;
-  var row = tbl.find(function(r){ return r.id===id; });
-  if(!row) return;
-  if(!confirm('Reset "'+row.product+'" — Out and In will both go back to 0 (Total Stock stays the same). Continue?')) return;
-  row.out_qty = 0;
-  row.in_qty = 0;
-  saveDB();
-  toast('✅ Reset — Out & In cleared for '+row.product);
-  loadStock();
-  renderStockManage();
-}
-function resetAllStockMovements(){
-  if(!confirm('Reset Out &amp; In to 0 for EVERY stock item (Main + Sub)? Total Stock quantities are kept. This cannot be undone.')) return;
-  DB.invMain.forEach(function(r){ r.out_qty=0; r.in_qty=0; });
-  DB.invSub.forEach(function(r){ r.out_qty=0; r.in_qty=0; });
-  saveDB();
-  toast('✅ All stock Out/In counters reset');
-  loadStock();
-  renderStockManage();
-}
+function resetStockItem(group, id){ recalcStockUI(); }
+function resetAllStockMovements(){ recalcStockUI(); }
 // BUGFIX: previously you could delete a stock item even while it still had
 // pieces currently out (out_qty > in_qty). That silently orphaned it — any
 // later "return" or "resolve missing" for that product would just recreate
@@ -6259,7 +6306,7 @@ function showReport(id){
     html=reportTable(['Bill No','Customer','Phone','Type','Balance'], p.pending.map(function(r){ return [r.billNo, r.customer, r.phone, r.type, '₹'+fmt(r.balance)]; }));
   } else if(id==='stock'){
     var rows=getStockData('MAIN').concat(getStockData('SUB'));
-    html=reportTable(['Product','Total Stock','Out','In','Available'], rows.map(function(s){ return [s.name, s.total, s.out_qty, s.in_qty, s.available]; }));
+    html=reportTable(['Product','Total Stock','Out now','Available','Dispatched (all time)','Returned (all time)'], rows.map(function(s){ return [s.name, s.total, s.out, s.available, s.out_qty, s.in_qty]; }));
   } else if(id==='attendance'){
     var rows=DB.attendance.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
     html=reportTable(['Date','Employee','Status','In','Out','OT'], rows.map(function(r){ return [fmtDate(r.date), empName(r.emp_id), r.status, r.check_in||'—', r.check_out||'—', r.overtime||0]; }));
@@ -6567,6 +6614,7 @@ document.addEventListener('keydown',function(e){
 
 // ───────────────────────── MISSING: edit / delete / undo + refresh everywhere ─────────────────────────
 function refreshAfterMissing(){
+  try{ reconcileStock(); }catch(e){}
   try{ renderSiteWorkspace(); }catch(e){}
   try{ loadStock(); }catch(e){}
   try{ loadPending(); }catch(e){}
@@ -6576,6 +6624,7 @@ function refreshAfterMissing(){
 function deleteSiteMissing(id){
   var site=findSiteById(curSiteId); if(!site) return;
   var rec=(site.missingItems||[]).find(function(m){ return m.id===Number(id); }); if(!rec) return;
+  if(rec.resolved && rec.chargeType!=='fixed'){ var _g=stockGuard([{name:rec.product,group:rec.group,add:rec.qty}]); if(_g.length){ alert(stockGuardMsg(_g)); return; } }
   if(!confirm('Delete this missing entry ('+rec.product+' × '+rec.qty+')?\nஇந்த qty மறுபடி "Pending"-க்கு திரும்பிடும் — சரியா மறுபடி enter பண்ணலாம்.'+(rec.resolved&&rec.chargeType!=='fixed'?'\n(Stock-ல restore ஆன qty-யும் reverse ஆகும்)':''))) return;
   if(rec.resolved && rec.chargeType!=='fixed') updateInv(rec.product, rec.group||'MAIN', 'in_qty', -rec.qty);
   site.missingItems=site.missingItems.filter(function(m){ return m.id!==rec.id; });
@@ -6646,10 +6695,12 @@ function undoMissingEntry(i){
   var ret=DB.returns.find(function(r){ return r.return_bill_no===u.returnBillNo; });
   if(!ret){ toast('⚠ Return bill not found'); return; }
   if(Number(ret.final_balance)!==u.after.fb||Number(ret.additional_pay||0)!==u.after.ap||(ret.notes||'')!==u.after.n){ toast('⚠ இதுக்கு அப்புறம் இந்த bill-ல வேற மாற்றம்/payment நடந்திருக்கு — முதல்ல அதை undo பண்ணுங்க'); return; }
+  var _g=stockGuard((u.inv||[]).map(function(x){ return {name:x.name,group:x.group,add:x.qty}; }));
+  if(_g.length){ alert(stockGuardMsg(_g)); return; }
   if(!confirm('Undo: '+u.label+' ?')) return;
   Object.keys(ret).forEach(function(k){ delete ret[k]; }); Object.assign(ret,JSON.parse(JSON.stringify(u.snap)));
   (u.inv||[]).forEach(function(x){ updateInv(x.name,x.group,'in_qty',-x.qty); });
-  DB.missUndo.splice(i,1); saveDB(); toast('↩ Undone'); try{ loadStock(); loadPending(); }catch(e){} loadMissing();
+  DB.missUndo.splice(i,1); try{ reconcileStock(); }catch(e){} saveDB(); toast('↩ Undone'); try{ loadStock(); loadPending(); }catch(e){} loadMissing();
 }
 
 // ───────────────────────── MONTHLY (30-DAY) RENT ─────────────────────────
@@ -7078,6 +7129,69 @@ function clShowDetail(key){
 function clFormOpenDetail(key){ clFormOpen(key); el('cl-detail-view').style.display='none'; el('cl-list-view').style.display='block'; el('cl-list').innerHTML=''; el('cl-summary').innerHTML=''; }
 function clAddNew(){ clState.sel=null; clRender(); clFormOpen(null); }
 
+// ── open the folder where the database + backups are saved (desktop app) ──
+function vbOpenFolder(kind){
+  try{
+    var dir=process.env.VBCS_DATA_DIR, path=require('path'), fs=require('fs'), sh=require('electron').shell;
+    if(!dir) throw new Error('no data dir');
+    var target=kind==='backups'?path.join(dir,'Backups'):dir;
+    try{ fs.mkdirSync(target,{recursive:true}); }catch(e){}
+    sh.openPath(target).then(function(err){ if(err) toast('⚠ Could not open: '+err,6000); });
+  }catch(e){ toast('⚠ This works in the installed desktop app only (browser mode keeps data inside the browser)',6000); }
+}
+(function(){ function showPath(){ try{ var e=document.getElementById('data-folder-path'); if(e&&process.env.VBCS_DATA_DIR) e.textContent='Data is saved in: '+process.env.VBCS_DATA_DIR; }catch(x){} } window.addEventListener('load',showPath); document.addEventListener('click',function(){ setTimeout(showPath,0); }); })();
+
+// ── custom customer-name / phone suggestion dropdown ──
+// ROOT CAUSE of "dropdown shows but I cannot type any more": the browser's native <datalist> popup (rebuilt with up to 1500
+// options on every focus) can lock the text box in the desktop app. This light dropdown never takes focus away from the box,
+// shows at most 8 matches, and works with mouse, arrow keys + Enter, Esc.
+(function(){
+  var MAP={}, box=null, cur=null, sel=-1, rows=[];
+  [['d-name','d-phone','d-addr'],['st-cust-name','st-cust-phone','st-cust-addr'],['od-f-name','od-f-phone','od-f-addr']].forEach(function(t){
+    MAP[t[0]]={k:'name',n:t[0],p:t[1],a:t[2]}; MAP[t[1]]={k:'phone',n:t[0],p:t[1],a:t[2]};
+  });
+  function mk(){
+    if(box) return box; box=document.createElement('div'); box.id='vb-suggest';
+    box.style.cssText='position:fixed;z-index:100001;display:none;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.2);max-height:260px;overflow:auto;font-size:13px';
+    box.addEventListener('mousedown',function(e){ e.preventDefault(); var r=e.target.closest('[data-i]'); if(r) pick(rows[+r.getAttribute('data-i')]); });
+    document.body.appendChild(box); return box;
+  }
+  function hide(){ if(box) box.style.display='none'; cur=null; sel=-1; rows=[]; }
+  function setV(id,v){ var e=document.getElementById(id); if(!e) return; e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); e.dispatchEvent(new Event('change',{bubbles:true})); }catch(x){} }
+  function pick(c){
+    if(!c||!cur) return; var cfg=MAP[cur.id], a=cfg.a&&document.getElementById(cfg.a), addr=(a&&!a.value.trim()&&c.address)?c.address:null;
+    setV(cfg.n,c.name||''); setV(cfg.p,c.phone||''); if(addr!==null) setV(cfg.a,addr); hide();
+  }
+  function paint(){
+    box.innerHTML=rows.map(function(c,i){ return '<div data-i="'+i+'" style="padding:7px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;'+(i===sel?'background:#e0f2fe':'')+'"><b>'+esc(c.name||'')+'</b> <span style="color:#64748b">'+esc(c.phone||'')+'</span></div>'; }).join('');
+  }
+  function show(inp){
+    var cfg=MAP[inp.id]; if(!cfg) return;
+    var q=String(inp.value||'').trim().toLowerCase(), qd=q.replace(/\D/g,''); if(!q){ hide(); return; }
+    var list=[]; try{ list=buildCustIndex().list; }catch(e){ return; }
+    var hits=[];
+    for(var i=0;i<list.length;i++){ var c=list[i]; if(!c||(!c.name&&!c.phone)) continue;
+      var nm=String(c.name||'').toLowerCase(), ph=String(c.phone||'').replace(/\D/g,'');
+      var ok=cfg.k==='name' ? (nm.indexOf(q)>-1 || (qd.length>=3 && ph.indexOf(qd)>-1)) : (qd.length>=1 && ph.indexOf(qd)>-1);
+      if(ok){ c.__s=(cfg.k==='name'?nm:ph).indexOf(cfg.k==='name'?q:qd)===0?0:1; hits.push(c); } }
+    hits.sort(function(a,b){ return a.__s-b.__s; }); rows=hits.slice(0,8);
+    if(!rows.length || (rows.length===1 && String(rows[0].name||'').trim().toLowerCase()===q && cfg.k==='name' && document.getElementById(cfg.p).value.trim())){ hide(); return; }
+    cur=inp; sel=-1; mk(); paint();
+    var r=inp.getBoundingClientRect(); box.style.display='block'; box.style.minWidth=Math.max(r.width,260)+'px'; box.style.left=Math.max(4,Math.min(r.left,window.innerWidth-box.offsetWidth-4))+'px';
+    var h=box.offsetHeight; box.style.top=((r.bottom+h+8>window.innerHeight && r.top>h+8)?(r.top-h-2):(r.bottom+2))+'px';
+  }
+  document.addEventListener('input',function(e){ var t=e.target; if(t&&MAP[t.id]&&t.__vbk!==false) show(t); });
+  document.addEventListener('keydown',function(e){
+    if(!cur||!box||box.style.display==='none'||e.target!==cur) return;
+    if(e.key==='ArrowDown'){ sel=Math.min(rows.length-1,sel+1); paint(); e.preventDefault(); }
+    else if(e.key==='ArrowUp'){ sel=Math.max(0,sel-1); paint(); e.preventDefault(); }
+    else if(e.key==='Enter'&&sel>=0){ e.preventDefault(); e.stopPropagation(); pick(rows[sel]); }
+    else if(e.key==='Escape'||e.key==='Tab'){ hide(); }
+  },true);
+  document.addEventListener('focusout',function(e){ if(cur&&e.target===cur) setTimeout(function(){ if(document.activeElement!==cur) hide(); },150); });
+  window.addEventListener('resize',hide); window.addEventListener('scroll',hide,true);
+})();
+
 // ── autofill customer details in the bill forms ──
 function clFillDatalists(){
   var ci=buildCustIndex(), dn=el('cust-dl-name'), dp=el('cust-dl-phone'); if(!dn||!dp) return;
@@ -7096,8 +7210,7 @@ function clAutofill(nameId,phoneId,addrId,changed){
 function clAttachAutofill(){
   [['d-name','d-phone','d-addr'],['st-cust-name','st-cust-phone','st-cust-addr']].forEach(function(t){
     var n=el(t[0]),p=el(t[1]); if(!n||!p||n.dataset.clx) return; n.dataset.clx='1';
-    n.setAttribute('list','cust-dl-name'); p.setAttribute('list','cust-dl-phone');
-    n.addEventListener('focus',clFillDatalists); p.addEventListener('focus',clFillDatalists);
+    n.removeAttribute('list'); p.removeAttribute('list'); n.setAttribute('autocomplete','off'); p.setAttribute('autocomplete','off');   // native datalist froze typing - custom dropdown below
     n.addEventListener('change',function(){ clAutofill(t[0],t[1],t[2],'name'); });
     p.addEventListener('change',function(){ clAutofill(t[0],t[1],t[2],'phone'); });
   });
@@ -8237,7 +8350,7 @@ function edRefresh(){
   try{ if($('asb-out-list')) renderAllSitesBillsReturns(); }catch(e){}
   try{ var bm=$('bill-modal'); if(bm) bm.style.display='none'; }catch(e){}
 }
-function done(msg){ saveDB(); edClose(); edRefresh(); toast(msg,4000); }
+function done(msg){ try{ reconcileStock(); }catch(e){} saveDB(); edClose(); edRefresh(); toast(msg,4000); }
 
 // ══════════════ SMALL CONSTRUCTION — DISPATCH BILL ══════════════
 window.edDelDispatch=function(billNo){
@@ -8326,6 +8439,8 @@ function retBlocked(r){
 window.edDelReturn=function(rno){
   var X=ix(), r=X.retByNo.get(rno); if(!r){ toast('⚠ Return bill not found'); return; }
   if(retBlocked(r)) return;
+  var _g=stockGuard((r.items||[]).map(function(it){ return {name:it.product,group:it.group_type,add:it.qty}; }));
+  if(_g.length){ alert('🗑 Return bill '+rno+'\n\n'+stockGuardMsg(_g)); return; }
   var pays=payLogFor(rno);
   var msg='🗑 Return bill '+rno+' ('+r.customer+') delete பண்ணலாமா?\n\n• Stock (IN) மறுபடி குறையும் — material திரும்ப "வெளியே" னு காட்டும்\n• Original bill '+r.original_bill_no+' மறுபடி pending ஆகும்\n'+
     (pays.length?'• இந்த bill-ன் '+pays.length+' payment receipt(s) ('+R(sum(pays,function(p){return p.amount;}))+') நீக்கப்படும்\n':'')+'\nஇதை undo பண்ண முடியாது.';
@@ -8381,6 +8496,8 @@ window.edEditReturn=function(rno){
     if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (bill-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
     checkRates(rows);
     rows.forEach(function(x){ if(x.max!=null && x.qty>x.max) throw new Error(x.product+': இன்னும் வெளியே '+x.max+' pcs மட்டுமே இருக்கு'); });
+    var _g=stockGuard(rows.map(function(x){ return {name:x.product,group:x.group,add:x.oldQty-x.qty}; }));
+    if(_g.length) throw new Error(stockGuardMsg(_g).replace(/\n/g,' '));
     rows.forEach(function(x){ var dl=x.qty-x.oldQty; if(dl) updateInv(x.product,x.group,'in_qty',dl); });
     r.customer=g('ed-name'); r.phone=g('ed-phone'); r.return_date=g('ed-ret');
     r.actual_days=c.d.days; r.actual_months=c.d.months; r.total_rental=c.total;
@@ -8533,6 +8650,8 @@ window.edEditSiteOut=function(siteId,idx){
 window.edDelSiteIn=function(siteId,idx){
   var site=siteOf(siteId); if(!site) return; var b=(site.inBatches||[])[idx]; if(!b){ toast('⚠ Batch not found'); return; }
   var no=site.site_no+'-IN-'+(idx+1);
+  var _g=stockGuard((b.items||[]).map(function(it){ return {name:it.product,group:it.group,add:it.qty}; }));
+  if(_g.length){ alert('🗑 '+no+'\n\n'+stockGuardMsg(_g)); return; }
   var msg='🗑 '+no+' ('+site.customer+') delete பண்ணலாமா?\n\n• Items: '+(b.items||[]).map(function(i){ return i.product+' × '+i.qty; }).join(', ')+'\n• அந்த material மறுபடி "site-ல pending" னு காட்டும் (stock குறையும்)\n'+
     (n0(b.payment)>0?'• இந்த return-ல வாங்கின payment '+R(b.payment)+' நீக்கப்படும்\n':'')+(n0(b.vrent)>0?'• Vehicle rent trip நீக்கப்படும்\n':'')+
     '• பின்னால உள்ள IN batch numbers ஒண்ணு குறையும்'+closedNote(site)+'\n\nஇதை undo பண்ண முடியாது.';
@@ -8571,6 +8690,8 @@ window.edEditSiteIn=function(siteId,idx){
     var pr=newProblems(site,s2);
     if(pr.length) throw new Error('Qty அதிகம் — pending-ஐ விட: '+pr.map(function(p){return p.msg;}).join(', '));
     var rb=returnBeforeOut(s2); if(rb) throw new Error(rb);
+    var _g=stockGuard(rows.map(function(r){ return {name:r.product,group:r.group,add:r.oldQty-r.qty}; }));
+    if(_g.length) throw new Error(stockGuardMsg(_g).replace(/\n/g,' '));
     rows.forEach(function(r){ var dl=r.qty-r.oldQty; if(dl) updateInv(r.product,r.group,'in_qty',dl); });
     b.date=date; b.items=newItems; b.note=g('ed-note'); b.payment=gn('ed-pay'); b.damage=gn('ed-dmg'); b.unloading=gn('ed-unl');
     b.discount=gn('ed-disc'); b.less=gn('ed-less'); b.extra=gn('ed-extra'); b.extra2=gn('ed-extra2');
@@ -8601,6 +8722,22 @@ document.addEventListener('click',function(e){
 
 </script>
 
+<script>
+// ROOT CAUSE of "cannot type until I close and reopen the software": in Electron a native alert() / confirm() box leaves the
+// window without keyboard focus, so every text box looks normal but ignores typing. After each dialog the window is re-focused
+// and the box that was being used gets its cursor back.
+(function(){
+  var ipc=null; try{ ipc=require('electron').ipcRenderer; }catch(e){}
+  ['alert','confirm'].forEach(function(n){
+    var o=window[n]; if(typeof o!=='function') return;
+    window[n]=function(){
+      var a=document.activeElement, r=o.apply(window,arguments);
+      setTimeout(function(){ try{ if(ipc) ipc.send('vbcs-refocus'); }catch(e){} try{ window.focus(); if(a&&a!==document.body&&a.focus&&document.contains(a)) a.focus(); }catch(e){} },30);
+      return r;
+    };
+  });
+})();
+</script>
 <!-- ══════════ NETBIRD NETWORK SYNC LAYER (replaces Supabase cloud layer) ══════════ -->
 <div id="vbcs-boot" style="position:fixed;inset:0;z-index:99999;background:#0f172a;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,'Segoe UI',sans-serif">
   <div style="font-size:30px;font-weight:800">Garuda Construction Service</div>

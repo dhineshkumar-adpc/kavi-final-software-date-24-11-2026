@@ -155,6 +155,10 @@ ipcMain.handle('vbcs-wa-share', async (e, req) => {
     return { file, copied, opened, auto };
   } catch (x) { return { error: x.message }; }
 });
+// After a native alert()/confirm() the window can lose keyboard focus (text boxes stop accepting typing) - give it back.
+ipcMain.on('vbcs-refocus', () => { try { if (win && !win.isDestroyed()) { win.blur(); win.focus(); win.webContents.focus(); } } catch (e) {} });
+// Open the data / backup folder from the app
+ipcMain.handle('vbcs-open-folder', async (e, which) => { try { return await shell.openPath(which === 'backups' ? path.join(dataDir, 'Backups') : dataDir); } catch (x) { return x.message; } });
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 app.whenReady().then(() => {
