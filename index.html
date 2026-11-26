@@ -1875,14 +1875,42 @@ function stockGuard(list){
   return bad;
 }
 function stockGuardMsg(bad){ return 'Stock தாண்டிடும் — மாத்த முடியாது:\n'+bad.join('\n')+'\n\nஇந்த material ஏற்கனவே வேற bill-ல வெளியே போயிருக்கு. முதல்ல அந்த bill-ஐ Return / Delete பண்ணுங்க.'; }
+// OLD DATA REPAIR: before the rename fix, renaming a stock item left the old name on the bills, and deleting / editing such a
+// bill created an empty "ghost" row (Total 0). When a ghost row's pieces exactly equal the surplus counted on exactly ONE
+// similar-named item (e.g. ghost "Jacky" -> real "Jacky 2+2"), the bills are moved to that item and the ghost row is removed.
+function repairGhostRows(){
+  var fixed=[], unresolved=[];
+  DB.invMain.concat(DB.invSub).forEach(function(g){
+    if((Number(g.total_stock)||0)!==0) return;
+    var rec=stockFromRecords(), gr=rec.map.get(g); if(!gr||(gr.out===0&&gr.inn===0)) return;
+    var gq=gr.out-gr.inn, gl=String(g.product||'').trim().toLowerCase();
+    var cands=DB.invMain.concat(DB.invSub).filter(function(t){
+      if(t===g||(Number(t.total_stock)||0)<=0) return false;
+      var tl=String(t.product||'').trim().toLowerCase(); if(tl.indexOf(gl)!==0&&gl.indexOf(tl)!==0) return false;
+      var tr=rec.map.get(t)||{out:0,inn:0}, surplus=((Number(t.out_qty)||0)-(Number(t.in_qty)||0))-(tr.out-tr.inn);
+      return gq>0 && surplus===gq;
+    });
+    if(cands.length===1){
+      renameProductEverywhere(g.product,cands[0].product);
+      DB.invMain=DB.invMain.filter(function(r){ return r!==g; }); DB.invSub=DB.invSub.filter(function(r){ return r!==g; });
+      fixed.push(g.product+' → '+cands[0].product+' ('+gq+' pcs)');
+    } else unresolved.push(g.product);
+  });
+  if(fixed.length){ try{ auditLog('STOCK_GHOST_MERGE',fixed.join(' | ')); }catch(e){} saveDB(); }
+  return {fixed:fixed,unresolved:unresolved};
+}
 function recalcStockUI(){
+  var gh=repairGhostRows(); if(gh.fixed.length) toast('✅ Old name merged: '+gh.fixed.join(', '),7000);
   var r=reconcileStock(), orp=Object.keys(r.orphans);
+  if(gh.unresolved.length) alert('⚠ Stock item(s) with Total 0 are used on bills: '+gh.unresolved.join(', ')+'\n\nThese are old names of a renamed item. Open the Stock tab, give the real item this old name, tap Save, then rename it again to the new name — all bills will follow.');
   toast(r.changes.length?('✅ Stock corrected for '+r.changes.length+' item(s) from the bills'):'✅ Stock already matches all bills', 5000);
   if(orp.length) alert('⚠ These product names are on old bills but NOT in the Stock list (renamed / deleted?):\n\n'+orp.slice(0,15).join('\n')+'\n\nAdd them in the Stock tab (or rename a stock item to that name) so their pieces are counted.');
   try{ loadStock(); renderStockManage(); loadPending(); }catch(e){}
 }
-var __stockFix=null; try{ __stockFix=reconcileStock(); }catch(e){ console.error('stock reconcile failed',e); }
-window.addEventListener('load',function(){ try{ if(__stockFix&&__stockFix.changes.length) setTimeout(function(){ toast('✅ Stock matched with bills — '+__stockFix.changes.length+' item(s) corrected',6000); try{ loadStock(); }catch(e){} },800); }catch(e){} });
+var __stockFix=null, __ghostFix=null; try{ __ghostFix=repairGhostRows(); __stockFix=reconcileStock(); }catch(e){ console.error('stock reconcile failed',e); }
+window.addEventListener('load',function(){ try{ if(__ghostFix&&__ghostFix.fixed.length) setTimeout(function(){ toast('✅ Old product name merged: '+__ghostFix.fixed.join(', '),8000); },600);
+    if(__ghostFix&&__ghostFix.unresolved.length) setTimeout(function(){ alert('⚠ Stock item(s) with Total 0 are used on bills: '+__ghostFix.unresolved.join(', ')+'\n\nOpen the Stock tab and tap 🔄 Recalculate for instructions.'); },1500);
+    if(__stockFix&&__stockFix.changes.length) setTimeout(function(){ toast('✅ Stock matched with bills — '+__stockFix.changes.length+' item(s) corrected',6000); try{ loadStock(); }catch(e){} },800); }catch(e){} });
 
 function getStockData(sheet){
   var tbl = sheet==='SUB' ? DB.invSub : DB.invMain;
