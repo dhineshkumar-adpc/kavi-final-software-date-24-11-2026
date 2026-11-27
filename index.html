@@ -9097,32 +9097,20 @@ window.csRender=function(){
 };
 
 // ── REGISTER FORMAT (same columns as the printed "DAILY STOCK REGISTER") ──
-// Date | IN/OUT | Customer Name | Centering Sheet (2x3, 2x3¾, 8x3, 8x4) | Props (2+2, 2+3, 3+3) | Span (2½+2½, 3+3) | Adj. Sheet | Remarks
-var REG_GROUPS=[
-  {g:'Centering Sheet',c:[{id:'cs23',l:'2x3'},{id:'cs233',l:'2x3¾'},{id:'cs83',l:'8x3'},{id:'cs84',l:'8x4'}]},
-  {g:'Props',c:[{id:'p22',l:'2 + 2'},{id:'p23',l:'2 + 3'},{id:'p33',l:'3 + 3'}]},
-  {g:'Span',c:[{id:'s2525',l:'2½+2½'},{id:'s33',l:'3+3'}]},
-  {g:'Adj. Sheet',c:[{id:'adj',l:'Adj. Sheet'}]}
-];
-function regKey(name){
-  var n=lc(name).replace(/\s+/g,'').replace(/[×*]/g,'x').replace(/¾/g,'3/4').replace(/½/g,'1/2').replace(/(\d)\.5/g,'$11/2').replace(/(\d)-/g,'$1');
-  if(/adj/.test(n)) return 'adj';
-  var span=/span/.test(n), prop=/prop|jack|jacky/.test(n);
-  if(/2x2?3(3\/4|\.75)|2x33\/4/.test(n)||/2x3(3\/4)/.test(n)) return 'cs233';
-  if(/2x3/.test(n)&&!/2x3\d/.test(n)) return 'cs23';
-  if(/8x3/.test(n)) return 'cs83';
-  if(/8x4/.test(n)) return 'cs84';
-  if(/21\/2\+21\/2|2\.5\+2\.5/.test(n)) return 's2525';
-  if(/3\+3/.test(n)) return span?'s33':(prop?'p33':'p33');
-  if(/2\+2/.test(n)) return 'p22';
-  if(/2\+3/.test(n)) return 'p23';
-  return '';
+// Date | IN/OUT | Customer Name | <every item of the Stock list, grouped Main / Sub> | Remarks
+var REG_GROUPS=[], REG_KNOWN={};
+function regBuild(){
+  REG_GROUPS=[]; REG_KNOWN={};
+  [['MAIN','Main Stock'],['SUB','Sub Stock']].forEach(function(g){
+    var c=[]; getStockData(g[0]).forEach(function(r){ var k=lc(r.name); if(!k||REG_KNOWN[k]) return; REG_KNOWN[k]=1; c.push({id:k,l:r.name}); });
+    if(c.length) REG_GROUPS.push({g:g[1],c:c});
+  });
 }
+function regKey(name){ var k=lc(name); return REG_KNOWN[k]?k:''; }
 function regHead(first){
   var h1='<tr>'+first.map(function(f){ return '<th rowspan="2" style="vertical-align:middle;'+(f.w?'min-width:'+f.w+'px':'')+'">'+f.t+'</th>'; }).join('');
   var h2='<tr>';
   REG_GROUPS.forEach(function(G){
-    if(G.c.length===1&&G.g==='Adj. Sheet'){ h1+='<th rowspan="2" style="vertical-align:middle;text-align:center">Adj.<br>Sheet</th>'; return; }
     h1+='<th colspan="'+G.c.length+'" style="text-align:center">'+G.g+'</th>';
     G.c.forEach(function(c){ h2+='<th style="text-align:center">'+c.l+'</th>'; });
   });
@@ -9152,6 +9140,7 @@ function regLog(){
   return rows;
 }
 function drawRegister(mx){
+  regBuild();
   var rows=regLog(), total=rows.length; rows=rows.slice(0,400);
   var H=regHead([{t:'Date',w:90},{t:'IN / OUT',w:70},{t:'Customer Name',w:180}]).tail('<th rowspan="2" style="vertical-align:middle;min-width:160px">Remarks</th>');
   if(!rows.length){ mx.innerHTML='<div class="empty">Entry illa.</div>'; return; }
@@ -9161,9 +9150,10 @@ function drawRegister(mx){
       regCells(by,function(v){ return '<td style="text-align:center;font-weight:700">'+(v?fmtN(v):'')+'</td>'; })+
       '<td style="font-size:12px">'+esc(r.ref)+(oth?'<br>'+oth:'')+'</td></tr>';
   }).join('');
-  mx.innerHTML=regTable(H,body)+(total>rows.length?'<div class="note">Latest '+rows.length+' of '+total+' entries shown. Use the search box to narrow down.</div>':'')+'<div class="note">Bill / Site no. and any item that does not belong to a register column are shown in Remarks.</div>';
+  mx.innerHTML=regTable(H,body)+(total>rows.length?'<div class="note">Latest '+rows.length+' of '+total+' entries shown. Use the search box to narrow down.</div>':'')+'<div class="note">Columns = your Stock list (Stock tab). Bill / Site no. is shown in Remarks.</div>';
 }
 function drawBalance(mx){
+  regBuild();
   var G=csGet(), ids=regAllIds(), tot={}, grand=0, gMiss=0, oth={};
   if(!G.custs.length){ mx.innerHTML='<div class="empty">No stock is out with any customer ✅</div>'; return; }
   var H=regHead([{t:'Customer Name',w:180}]).tail('<th rowspan="2" style="vertical-align:middle">Total</th><th rowspan="2" style="vertical-align:middle">Missing / Lost</th><th rowspan="2" style="vertical-align:middle;min-width:150px">Remarks</th>');
