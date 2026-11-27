@@ -9126,12 +9126,19 @@ function regTable(headRows,body,foot){ return '<style>#cs-matrix table{border-co
 function regLog(){
   var f=csFilters(), rows=[], X=null;
   function add(date,io,cust,phone,items,ref,src){
-    if(f.src&&src!==f.src) return; items=(items||[]).filter(function(i){ return n0(i.qty)>0; }); if(!items.length) return;
+    if(f.src&&src!==f.src) return; items=(items||[]).filter(function(i){ return n0(i.qty)>0; });
+    if(f.prod) items=items.filter(function(i){ return lc(i.product)===f.prod; });
+    if(!items.length) return;
     if(f.q&&lc(cust).indexOf(f.q)<0&&lc(ref).indexOf(f.q)<0&&String(phone||'').replace(/\D/g,'').indexOf(f.q.replace(/\D/g,'')||'\u0000')<0) return;
     rows.push({d:toISODate(date)||'',io:io,c:cust||'',items:items,ref:ref||'',src:src});
   }
   (DB.sales||[]).forEach(function(x){ add(x.out_date,'OUT',x.customer,x.phone,x.items,x.bill_no,'Small Construction'); });
-  (DB.returns||[]).forEach(function(x){ add(x.return_date,'IN',x.customer,x.phone,x.items||x.return_items,x.return_bill_no,'Small Construction'); });
+  (DB.returns||[]).forEach(function(x){
+    // pieces written off as LOST were never put back: show them as lost, not as IN
+    var lost=__lostFromNotes(x.notes), lostTxt=[];
+    var its=(x.items||x.return_items||[]).map(function(i){ var k=lc(i.product), q=n0(i.qty), l=Math.min(q,lost[k]||0); if(l){ lost[k]-=l; lostTxt.push(i.product+' × '+l); } return {product:i.product,qty:q-l}; });
+    add(x.return_date,'IN',x.customer,x.phone,its,x.return_bill_no+(lostTxt.length?' — Lost: '+lostTxt.join(', '):''),'Small Construction');
+  });
   (DB.sites||[]).forEach(function(st){
     (st.outBatches||[]).forEach(function(b){ add(b.date,'OUT',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
     (st.inBatches||[]).forEach(function(b){ add(b.date,'IN',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
