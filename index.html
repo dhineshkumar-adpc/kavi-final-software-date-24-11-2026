@@ -9142,6 +9142,8 @@ function regLog(){
   (DB.sites||[]).forEach(function(st){
     (st.outBatches||[]).forEach(function(b){ add(b.date,'OUT',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
     (st.inBatches||[]).forEach(function(b){ add(b.date,'IN',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
+    // missing pieces that were later FOUND and returned also go back into stock -> show them as IN
+    (st.missingItems||[]).forEach(function(m){ if(m.resolved&&m.chargeType!=='fixed') add(m.resolvedDate,'IN',st.customer,st.phone,[{product:m.product,qty:m.qty}],st.site_no+' — found / returned','Site Ledger'); });
   });
   rows.sort(function(a,b){ return b.d.localeCompare(a.d)||(a.io==='OUT'?-1:1); });
   return rows;
