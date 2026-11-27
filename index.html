@@ -772,6 +772,7 @@ table.calc-tbl .badge{white-space:nowrap}
     <div class="box">
       <div class="bh">📋 Customer-wise Stock — யார்கிட்ட என்ன stock இருக்கு
         <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="cs-view" onchange="csRender()" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px;font-weight:700"><option value="register">🧾 Daily Stock Register</option><option value="balance">👥 Customer Stock (register format)</option><option value="detail">📋 Detail view</option></select>
           <button class="btn bo" onclick="csRender()">⟳ Refresh</button>
           <button class="btn bo" onclick="csToggleAll(true)">⊞ Expand all</button>
           <button class="btn bo" onclick="csToggleAll(false)">⊟ Collapse all</button>
@@ -787,6 +788,7 @@ table.calc-tbl .badge{white-space:nowrap}
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;white-space:nowrap;margin:0"><input type="checkbox" id="cs-od" onchange="csRender()" style="width:auto;margin:0"> ⚠ Overdue only</label>
       </div>
       <div id="cs-summary" class="summary-stats" style="margin-bottom:12px"></div>
+      <div id="cs-matrix" style="overflow-x:auto"></div>
       <div id="cs-list"></div>
     </div>
     <div class="box">
@@ -9092,6 +9094,99 @@ window.csRender=function(){
   var P=csProducts(all);
   $('cs-prod').innerHTML=!P.length?'<div class="empty">Nothing is out.</div>':'<div style="overflow-x:auto"><table><thead><tr><th>Product</th><th style="text-align:right">Total stock</th><th style="text-align:right">With customers</th><th style="text-align:right">Missing / Lost</th><th style="text-align:right">Out now (Stock tab)</th><th style="text-align:right">Available</th><th>Check</th></tr></thead><tbody>'+
     P.map(function(p){ return '<tr><td><b>'+esc(p.name)+'</b></td><td style="text-align:right">'+(p.total===''?'—':fmtN(p.total))+'</td><td style="text-align:right;font-weight:700;color:var(--er)">'+fmtN(p.pending)+'</td><td style="text-align:right">'+(p.missing?fmtN(p.missing):'—')+'</td><td style="text-align:right">'+(p.stockOut===''?'—':fmtN(p.stockOut))+'</td><td style="text-align:right">'+(p.avail===''?'—':fmtN(p.avail))+'</td><td>'+(p.diff===0?'<span style="color:var(--ok)">✔ matches</span>':'<span style="color:#b91c1c">⚠ differs by '+(p.diff===''?'?':p.diff)+'</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>';
+};
+
+// ── REGISTER FORMAT (same columns as the printed "DAILY STOCK REGISTER") ──
+// Date | IN/OUT | Customer Name | Centering Sheet (2x3, 2x3¾, 8x3, 8x4) | Props (2+2, 2+3, 3+3) | Span (2½+2½, 3+3) | Adj. Sheet | Remarks
+var REG_GROUPS=[
+  {g:'Centering Sheet',c:[{id:'cs23',l:'2x3'},{id:'cs233',l:'2x3¾'},{id:'cs83',l:'8x3'},{id:'cs84',l:'8x4'}]},
+  {g:'Props',c:[{id:'p22',l:'2 + 2'},{id:'p23',l:'2 + 3'},{id:'p33',l:'3 + 3'}]},
+  {g:'Span',c:[{id:'s2525',l:'2½+2½'},{id:'s33',l:'3+3'}]},
+  {g:'Adj. Sheet',c:[{id:'adj',l:'Adj. Sheet'}]}
+];
+function regKey(name){
+  var n=lc(name).replace(/\s+/g,'').replace(/[×*]/g,'x').replace(/¾/g,'3/4').replace(/½/g,'1/2').replace(/(\d)\.5/g,'$11/2').replace(/(\d)-/g,'$1');
+  if(/adj/.test(n)) return 'adj';
+  var span=/span/.test(n), prop=/prop|jack|jacky/.test(n);
+  if(/2x2?3(3\/4|\.75)|2x33\/4/.test(n)||/2x3(3\/4)/.test(n)) return 'cs233';
+  if(/2x3/.test(n)&&!/2x3\d/.test(n)) return 'cs23';
+  if(/8x3/.test(n)) return 'cs83';
+  if(/8x4/.test(n)) return 'cs84';
+  if(/21\/2\+21\/2|2\.5\+2\.5/.test(n)) return 's2525';
+  if(/3\+3/.test(n)) return span?'s33':(prop?'p33':'p33');
+  if(/2\+2/.test(n)) return 'p22';
+  if(/2\+3/.test(n)) return 'p23';
+  return '';
+}
+function regHead(first){
+  var h1='<tr>'+first.map(function(f){ return '<th rowspan="2" style="vertical-align:middle;'+(f.w?'min-width:'+f.w+'px':'')+'">'+f.t+'</th>'; }).join('');
+  var h2='<tr>';
+  REG_GROUPS.forEach(function(G){
+    if(G.c.length===1&&G.g==='Adj. Sheet'){ h1+='<th rowspan="2" style="vertical-align:middle;text-align:center">Adj.<br>Sheet</th>'; return; }
+    h1+='<th colspan="'+G.c.length+'" style="text-align:center">'+G.g+'</th>';
+    G.c.forEach(function(c){ h2+='<th style="text-align:center">'+c.l+'</th>'; });
+  });
+  return {h1:h1,h2:h2,tail:function(extra){ return {h1:h1+extra+'</tr>',h2:h2+'</tr>'}; }};
+}
+function regCells(by,fn){ var t=''; REG_GROUPS.forEach(function(G){ G.c.forEach(function(c){ t+=fn(by[c.id]||0,c.id); }); }); return t; }
+function regAllIds(){ var a=[]; REG_GROUPS.forEach(function(G){ G.c.forEach(function(c){ a.push(c.id); }); }); return a; }
+function regOther(items){ return items.filter(function(i){ return !regKey(i.product); }).map(function(i){ return esc(i.product)+' × '+fmtN(i.qty); }).join(', '); }
+function regBy(items){ var by={}; items.forEach(function(i){ var k=regKey(i.product); if(k) by[k]=(by[k]||0)+n0(i.qty); }); return by; }
+var TH='border:1.5px solid #1e2a78;background:#eef2ff;color:#1e2a78;';
+function regTable(headRows,body,foot){ return '<style>#cs-matrix table{border-collapse:collapse;border:2px solid #1e2a78}#cs-matrix th,#cs-matrix td{border:1px solid #1e2a78;padding:6px 8px}#cs-matrix th{background:#eef2ff;color:#1e2a78}</style><table style="min-width:100%"><thead>'+headRows.h1+headRows.h2+'</thead><tbody>'+body+(foot||'')+'</tbody></table>'; }
+
+function regLog(){
+  var f=csFilters(), rows=[], X=null;
+  function add(date,io,cust,phone,items,ref,src){
+    if(f.src&&src!==f.src) return; items=(items||[]).filter(function(i){ return n0(i.qty)>0; }); if(!items.length) return;
+    if(f.q&&lc(cust).indexOf(f.q)<0&&lc(ref).indexOf(f.q)<0&&String(phone||'').replace(/\D/g,'').indexOf(f.q.replace(/\D/g,'')||'\u0000')<0) return;
+    rows.push({d:toISODate(date)||'',io:io,c:cust||'',items:items,ref:ref||'',src:src});
+  }
+  (DB.sales||[]).forEach(function(x){ add(x.out_date,'OUT',x.customer,x.phone,x.items,x.bill_no,'Small Construction'); });
+  (DB.returns||[]).forEach(function(x){ add(x.return_date,'IN',x.customer,x.phone,x.items||x.return_items,x.return_bill_no,'Small Construction'); });
+  (DB.sites||[]).forEach(function(st){
+    (st.outBatches||[]).forEach(function(b){ add(b.date,'OUT',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
+    (st.inBatches||[]).forEach(function(b){ add(b.date,'IN',st.customer,st.phone,b.items,st.site_no,'Site Ledger'); });
+  });
+  rows.sort(function(a,b){ return b.d.localeCompare(a.d)||(a.io==='OUT'?-1:1); });
+  return rows;
+}
+function drawRegister(mx){
+  var rows=regLog(), total=rows.length; rows=rows.slice(0,400);
+  var H=regHead([{t:'Date',w:90},{t:'IN / OUT',w:70},{t:'Customer Name',w:180}]).tail('<th rowspan="2" style="vertical-align:middle;min-width:160px">Remarks</th>');
+  if(!rows.length){ mx.innerHTML='<div class="empty">Entry illa.</div>'; return; }
+  var body=rows.map(function(r){
+    var by=regBy(r.items), oth=regOther(r.items);
+    return '<tr><td style="white-space:nowrap">'+esc(r.d?fdt(r.d):'—')+'</td><td style="text-align:center;font-weight:800;color:'+(r.io==='OUT'?'#b91c1c':'#15803d')+'">'+r.io+'</td><td style="font-weight:600">'+esc(r.c)+'</td>'+
+      regCells(by,function(v){ return '<td style="text-align:center;font-weight:700">'+(v?fmtN(v):'')+'</td>'; })+
+      '<td style="font-size:12px">'+esc(r.ref)+(oth?'<br>'+oth:'')+'</td></tr>';
+  }).join('');
+  mx.innerHTML=regTable(H,body)+(total>rows.length?'<div class="note">Latest '+rows.length+' of '+total+' entries shown. Use the search box to narrow down.</div>':'')+'<div class="note">Bill / Site no. and any item that does not belong to a register column are shown in Remarks.</div>';
+}
+function drawBalance(mx){
+  var G=csGet(), ids=regAllIds(), tot={}, grand=0, gMiss=0, oth={};
+  if(!G.custs.length){ mx.innerHTML='<div class="empty">No stock is out with any customer ✅</div>'; return; }
+  var H=regHead([{t:'Customer Name',w:180}]).tail('<th rowspan="2" style="vertical-align:middle">Total</th><th rowspan="2" style="vertical-align:middle">Missing / Lost</th><th rowspan="2" style="vertical-align:middle;min-width:150px">Remarks</th>');
+  var body=G.custs.map(function(c){
+    var items=c.lines.map(function(l){ return {product:l.product,qty:l.pending}; }), by=regBy(items), o=regOther(items), t=0;
+    ids.forEach(function(id){ t+=by[id]||0; tot[id]=(tot[id]||0)+(by[id]||0); });
+    c.lines.forEach(function(l){ if(!regKey(l.product)) t+=l.pending; });
+    grand+=t; gMiss+=c.t.missing;
+    return '<tr'+(c.t.overdue?' style="background:#fef2f2"':'')+'><td style="font-weight:700">'+esc(c.name||'(no name)')+(c.phone?'<br><span style="font-size:11px;font-weight:400">'+esc(c.phone)+'</span>':'')+'</td>'+
+      regCells(by,function(v){ return '<td style="text-align:center;font-weight:800;color:'+(v?'#b91c1c':'#cbd5e1')+'">'+(v?fmtN(v):'–')+'</td>'; })+
+      '<td style="text-align:center;font-weight:800">'+fmtN(t)+'</td><td style="text-align:center;color:#d97706;font-weight:700">'+(c.t.missing?fmtN(c.t.missing):'–')+'</td><td style="font-size:12px">'+(o||'')+(c.t.oldest?(o?'<br>':'')+'Out: '+esc(fdt(c.t.oldest))+(c.t.overdue?' ⚠ overdue':''):'')+'</td></tr>';
+  }).join('');
+  var foot='<tr style="background:#eef2ff;font-weight:800"><td>மொத்தம் / Total</td>'+regCells(tot,function(v){ return '<td style="text-align:center">'+fmtN(v)+'</td>'; })+'<td style="text-align:center">'+fmtN(grand)+'</td><td style="text-align:center">'+(gMiss?fmtN(gMiss):'–')+'</td><td></td></tr>';
+  mx.innerHTML=regTable(H,body,foot);
+}
+var __csRenderBase = window.csRender;
+window.csRender=function(){
+  __csRenderBase();
+  var mx=$('cs-matrix'), ls=$('cs-list'), v=$('cs-view'); if(!mx||!ls||!v) return;
+  var mode=v.value||'register', det=mode==='detail';
+  mx.style.display=det?'none':'block'; ls.style.display=det?'block':'none';
+  var sm=$('cs-summary'); if(sm) sm.style.display=mode==='register'?'none':'';
+  if(mode==='register') drawRegister(mx); else if(mode==='balance') drawBalance(mx);
 };
 window.csTopHolders=function(n){ var B=csBuild(); var a=B.custs.map(function(c){ c.t=csTotals(c); return c; }).filter(function(c){ return c.t.pending>0; }).sort(function(x,y){ return y.t.pending-x.t.pending; }); return a.slice(0,n); };
 window.csToggleAll=function(open){ document.querySelectorAll('#cs-list details').forEach(function(d){ d.open=open; }); };
