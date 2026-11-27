@@ -836,6 +836,7 @@ table.calc-tbl .badge{white-space:nowrap}
       <div id="dash-alerts"><div class="loading">Loading…</div></div>
     </div>
     <div id="dash-money"></div>
+    <div id="dash-items"></div>
     <div class="box">
       <div class="bh">⏳ நிலுவை (பாக்கி) விவரம் <span style="font-size:12px;color:var(--mu);font-weight:600">— இப்போதைய நிலவரம்</span></div>
       <div id="dash-pend"></div>
@@ -9635,7 +9636,8 @@ window.renderDashboard=function(period){
   var expBox=sectionBox('🧾 செலவு விவரம்','— '+lbl+' · மொத்தம் '+R(totalExp),
     tbl(['எதற்கு',{t:'எண்ணிக்கை',r:1},{t:'தொகை',r:1},''],catRows,catRows.length?'<tr style="background:#f1f5f9;font-weight:800"><td>மொத்தம்</td><td></td><td style="text-align:right">'+R(totalExp)+'</td><td></td></tr>':'')+
     '<div class="note" style="margin-top:10px">வண்டி வாடகை (Vehicle rent) தனி record — இங்கே சேர்க்கப்படவில்லை. Expenses tab-ல் சம்பளம் / பராமரிப்பையும் போட்டிருந்தால் இரண்டு முறை கணக்காகலாம்.</div>');
-  $('dash-money').innerHTML='<div class="g2" style="gap:16px;align-items:start">'+collBox+expBox+'</div>';
+  $('dash-money').innerHTML='<div class="note" style="margin-bottom:12px">💡 <b>வசூல்</b> = Customer-கிட்ட இருந்து உண்மையில் கையில் வந்த பணம் மட்டும் (Advance · Return-ல் செலுத்தியது · பாக்கி வசூல் · மாத வாடகை · Site payment · மற்ற வருமானம்). இன்னும் வராத பாக்கி இதில் சேராது — அது கீழே <b>நிலுவை</b>-ல் தனியாக உள்ளது. <b>செலவு</b> = நாம் கொடுத்த பணம். <b>நிகர மிச்சம்</b> = வசூல் − செலவு.</div>'+
+    '<div class="g2" style="gap:16px;align-items:start">'+collBox+expBox+'</div>';
 
   // 3) நிலுவை
   var due=ci.list.filter(function(c){ return c.outstanding>0; }).sort(function(a,b){ return b.outstanding-a.outstanding; }).slice(0,10).map(function(c){
@@ -9659,6 +9661,47 @@ window.renderDashboard=function(period){
   // 5) ஊழியர்
   $('dash-emp').innerHTML='<div class="dash-grid">'+
     [['மொத்த ஊழியர்',DB.employees.length,'var(--pri-d)'],['இன்று வந்தவர்',presentToday,'var(--ok)'],['இன்று வராதவர்',absentToday,'var(--er)'],['அரை நாள்',halfToday,'#d97706'],['சம்பள பாக்கி',R(payrollDue),'var(--wn)'],['சம்பளம் கொடுத்தது ('+lbl+')',R(salPaid),'var(--pri-d)']].map(function(x){ return '<div class="dcard"><div class="dv" style="color:'+x[2]+';font-size:20px">'+x[1]+'</div><div class="dl" style="text-transform:none;font-size:12.5px">'+x[0]+'</div></div>'; }).join('')+'</div>';
+
+  // 3b) பொருள் வாரியாக வசூல் — Main Inventory / Sub Inventory (ஒவ்வொரு பொருளுக்கும் தனித்தனியாக)
+  try{
+    var gOf={}; (DB.invMain||[]).forEach(function(r){ gOf[String(r.product).trim().toLowerCase()]='MAIN'; }); (DB.invSub||[]).forEach(function(r){ gOf[String(r.product).trim().toLowerCase()]='SUB'; });
+    var WM={}, hasRet={};
+    var wAdd=function(ref,name,grp,w){ w=n0(w); if(!ref||!(w>0)) return; var key=String(name||'').trim().toLowerCase(), o=WM[ref]=WM[ref]||{}, e=o[key]=o[key]||{name:name,grp:gOf[key]||grp||'MAIN',w:0}; e.w+=w; };
+    var sBy={}; (DB.sales||[]).forEach(function(s){ sBy[s.bill_no]=s; });
+    var RQ={}, WQ={}, qAdd=function(ref,name,grp,q){ q=n0(q); if(!ref||!(q>0)) return; var key=String(name||'').trim().toLowerCase(), o=WQ[ref]=WQ[ref]||{}, e=o[key]=o[key]||{name:name,grp:gOf[key]||grp||'MAIN',w:0}; e.w+=q; };
+    (DB.returns||[]).forEach(function(r){ hasRet[r.original_bill_no]=1; var os=sBy[r.original_bill_no]; (r.items||[]).forEach(function(i){
+      var a=n0(i.amount);
+      if(!(a>0)){   // older records have no per-item amount — recompute like apiGetReturns() does (price from the return item, else the dispatch bill)
+        var si=((os&&os.items)||[]).find(function(x){ return String(x.product).trim().toLowerCase()===String(i.product).trim().toLowerCase(); })||{}, src=(i.price!==undefined||i.calc_type)?i:si;
+        try{ a=rentFor({price:n0(src.price),monthPrice:mpOf(src),calcType:ctOf(src)},n0(i.qty),n0(r.actual_days)); }catch(e){ a=0; }
+      }
+      var rk=String(i.product||'').trim().toLowerCase(), rqo=RQ[r.original_bill_no]=RQ[r.original_bill_no]||{}; rqo[rk]=(rqo[rk]||0)+n0(i.qty);
+      wAdd(r.return_bill_no,i.product,i.group_type,a); wAdd(r.original_bill_no,i.product,i.group_type,a); qAdd(r.return_bill_no,i.product,i.group_type,i.qty); qAdd(r.original_bill_no,i.product,i.group_type,i.qty); }); });
+    // dispatch bill: items still out (not yet returned) keep their estimated rent, so an advance paid on the whole bill stays shared by all its items
+    (DB.sales||[]).forEach(function(s){ var rq=RQ[s.bill_no]||{}; (s.items||[]).forEach(function(i){ var q=n0(i.qty), rem=hasRet[s.bill_no]?Math.max(0,q-n0(rq[String(i.product||'').trim().toLowerCase()])):q; if(!(rem>0)) return; wAdd(s.bill_no,i.product,i.group_type,(n0(i.amount)||q*n0(i.price))*rem/q); qAdd(s.bill_no,i.product,i.group_type,rem); }); });
+    (DB.sites||[]).forEach(function(st){ var t=computeSiteTotals(st); Object.keys(t.byProduct).forEach(function(k){ var p=t.byProduct[k]; wAdd(st.site_no,p.name,p.group,n0(p.rentSettled)+n0(p.rentProvisional)+n0(p.missingRentProvisional)); }); });
+    var IC={}, unalloc=0, otherInc=0;
+    recv.forEach(function(r){
+      if(r.kind==='மற்ற வருமானம்'){ otherInc+=r.amt; return; }
+      var o=WM[r.ref], sw=0, k; if(o) for(k in o) sw+=o[k].w;
+      if(!o||!(sw>0)){ o=WQ[r.ref]; sw=0; if(o) for(k in o) sw+=o[k].w; }   // no rent value on the items → split by pieces
+      if(!o||!(sw>0)){ unalloc+=r.amt; return; }
+      for(k in o){ var x=IC[k]=IC[k]||{name:o[k].name,grp:o[k].grp,a:0}; x.a+=r.amt*o[k].w/sw; }
+    });
+    var gTot={MAIN:0,SUB:0};
+    var gBox=function(g,title){
+      var seen={}, rows=getStockData(g).map(function(s){ var k=String(s.name).trim().toLowerCase(); seen[k]=1; return {name:s.name,a:(IC[k]?IC[k].a:0)}; });
+      Object.keys(IC).forEach(function(k){ if(!seen[k]&&IC[k].grp===g) rows.push({name:IC[k].name+' (stock list-ல் இல்லை)',a:IC[k].a}); });
+      rows.sort(function(a,b){ return b.a-a.a; });
+      var tot=rows.reduce(function(s,x){ return s+x.a; },0); gTot[g]=tot;
+      var trs=rows.map(function(x){ return '<tr><td><b>'+esc(x.name)+'</b></td><td style="text-align:right;font-weight:800;color:'+(x.a>0?'var(--ok)':'var(--mu)')+'">'+R(x.a)+'</td><td style="min-width:90px">'+bar(pct(x.a,tot),'var(--ok)')+'</td></tr>'; });
+      return sectionBox(title,'— '+lbl+' · மொத்தம் '+R(tot),tbl(['பொருள்',{t:'வசூல் (₹)',r:1},'பங்கு %'],trs,trs.length?'<tr style="background:#f1f5f9;font-weight:800"><td>மொத்தம்</td><td style="text-align:right">'+R(tot)+'</td><td></td></tr>':''));
+    };
+    var mBox=gBox('MAIN','📦 Main Inventory — பொருள் வாரியாக வசூல்'), sBox=gBox('SUB','📦 Sub Inventory — பொருள் வாரியாக வசூல்');
+    $('dash-items').innerHTML='<div class="g2" style="gap:16px;align-items:start">'+mBox+sBox+'</div>'+
+      '<div class="note" style="margin:-6px 0 14px">💡 <b>எப்படி கணக்கு:</b> Payment என்பது bill / site வாரியாகத்தான் வரும். ஒரு bill-ல் பல பொருள் இருந்தால், அந்த bill-ன் வாடகை மதிப்பு விகிதத்தில் (Loading / Unloading உட்பட) பொருட்களுக்குப் பிரித்துக் காட்டப்படுகிறது.<br>'+
+      '✅ கூட்டுத்தொகை: மொத்த வசூல் <b>'+R(totalRecv)+'</b> = Main <b>'+R(gTot.MAIN)+'</b> + Sub <b>'+R(gTot.SUB)+'</b> + மற்ற வருமானம் <b>'+R(otherInc)+'</b> + பொருள் வாரியாக பிரிக்க முடியாதது <b>'+R(unalloc)+'</b> (bill கிடைக்காதது / வாடகை ₹0).</div>';
+  }catch(e){ try{ $('dash-items').innerHTML='<div class="note">பொருள் வாரியாக வசூல் காட்ட முடியவில்லை: '+esc(e.message)+'</div>'; }catch(_){} }
 
   // 6) எச்சரிக்கைகள்
   var alerts=[];
