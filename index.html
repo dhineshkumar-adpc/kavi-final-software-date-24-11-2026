@@ -313,6 +313,8 @@ table.calc-tbl .badge{white-space:nowrap}
       <div class="tab"    onclick="swMain('sites')">🏗️ Site Ledger</div>
       <div class="tab"    onclick="swMain('clients')">👥 Customers</div>
       <div class="tab"    onclick="swMain('stock')">📦 Stock</div>
+<div class="tab"    onclick="swMain('custstock')">📋 Customer Stock</div>
+<div class="tab"    onclick="swMain('prices')">💲 Price</div>
       <div class="tab"    onclick="swMain('customers')">📞 Contacts</div>
       <div class="tab"    onclick="swMain('employees')">🧑‍🔧 Employees</div>
       <div class="tab"    onclick="swMain('attendance')">🗓️ Attendance</div>
@@ -417,6 +419,7 @@ table.calc-tbl .badge{white-space:nowrap}
         <div class="sr"><span>🚚 வண்டி வாடகை — Vehicle Rent (Rs) <small style="color:var(--mu)">· separate, not company income</small></span><input type="number" id="d-vrent" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="calcD()"></div>
         <div class="sr"><span>Vehicle / Contact</span><select id="d-vcon" style="width:140px;padding:8px 6px" onfocus="vehFill(this)" onmousedown="vehFill(this)"></select></div>
         <div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="d-vshow" checked style="width:22px;height:22px" onchange="calcD()"></div>
+        <div id="d-pp-slot"></div>
         <div class="sr"><span>Advance Paid (Rs)</span><input type="number" id="d-adv" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="calcD()"></div>
         <div class="sr"><span>Balance Due</span><span id="d-sum-bal" style="color:var(--er);font-weight:800;font-size:16px">₹ 0</span></div>
         <div class="sgrand"><span>GRAND TOTAL</span><span id="d-sum-grand">₹ 0</span></div>
@@ -490,6 +493,7 @@ table.calc-tbl .badge{white-space:nowrap}
         <div class="sr"><span>🚚 வண்டி வாடகை — Vehicle Rent (Rs) <small style="color:var(--mu)">· separate, not company income</small></span><input type="number" id="r-vrent" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="calcR()"></div>
         <div class="sr"><span>Vehicle / Contact</span><select id="r-vcon" style="width:140px;padding:8px 6px" onfocus="vehFill(this)" onmousedown="vehFill(this)"></select></div>
         <div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="r-vshow" checked style="width:22px;height:22px" onchange="calcR()"></div>
+        <div id="r-pp-slot"></div>
         <div class="sr"><span>Previous Advance Paid</span><input type="number" id="r-prev" style="width:140px;text-align:right;padding:8px 10px" placeholder="Original advance" min="0" oninput="calcR()"></div>
         <div class="sr"><span>Partial Payments Collected (while out)</span><span id="r-sum-coll" style="color:#15803d;font-weight:800">₹ 0</span></div>
         <div class="sr"><span>Monthly (30-day) Rent Already Collected</span><span id="r-sum-monthly" style="color:#0d9488;font-weight:800">₹ 0</span></div>
@@ -763,26 +767,84 @@ table.calc-tbl .badge{white-space:nowrap}
     </div>
   </div>
 
+  <!-- ═══════════════ CUSTOMER-WISE STOCK PANE ═══════════════ -->
+  <div id="pane-custstock" class="pane">
+    <div class="box">
+      <div class="bh">📋 Customer-wise Stock — யார்கிட்ட என்ன stock இருக்கு
+        <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn bo" onclick="csRender()">⟳ Refresh</button>
+          <button class="btn bo" onclick="csToggleAll(true)">⊞ Expand all</button>
+          <button class="btn bo" onclick="csToggleAll(false)">⊟ Collapse all</button>
+          <button class="btn bg" onclick="csExcel()">📊 Download Excel</button>
+          <button class="btn bt" onclick="csPdf()">📄 Download PDF</button>
+        </span></div>
+      <div class="note">Small Construction bills + Site Ledger — ippo ovvoru customer / site kitta irukkura pieces (return aagaadhadhu), out date, expected return date, ethanai naal aachu, missing / lost vivaram. Downloads use the filters below.</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:center;margin-bottom:12px">
+        <input id="cs-q" placeholder="🔍 Customer name / phone / bill no" oninput="csRender()" autocomplete="off" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px">
+        <select id="cs-src" onchange="csRender()" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px"><option value="">All sources</option><option value="Small Construction">Small Construction</option><option value="Site Ledger">Site Ledger</option></select>
+        <select id="cs-pr" onchange="csRender()"  style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px"><option value="">All products</option></select>
+        <select id="cs-sort" onchange="csRender()" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px"><option value="pending">Sort: Most pieces first</option><option value="oldest">Sort: Oldest out first</option><option value="name">Sort: Name A-Z</option></select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;white-space:nowrap;margin:0"><input type="checkbox" id="cs-od" onchange="csRender()" style="width:auto;margin:0"> ⚠ Overdue only</label>
+      </div>
+      <div id="cs-summary" class="summary-stats" style="margin-bottom:12px"></div>
+      <div id="cs-list"></div>
+    </div>
+    <div class="box">
+      <div class="bh">📦 Product-wise total (all customers)</div>
+      <div class="note">With customers + Missing / Lost should always equal "Out now" in the Stock tab. If a row says "differs", tap 🔄 Recalculate in the Stock tab.</div>
+      <div id="cs-prod"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PRICE LIST PANE ═══════════════ -->
+  <div id="pane-prices" class="pane">
+    <div class="box">
+      <div class="bh">💲 Price List — விலைப் பட்டியல் <span id="px-count" style="font-size:12px;color:var(--mu);font-weight:600"></span></div>
+      <div class="note">Stock-la ulla ella items-kum price-ai inge oru thadava set pannalaam. <b>Switch ON</b> → bill-la indha price thaanaaga varum (bill-la maatha mudiyaadhu). <b>Switch OFF</b> → bill-la neengale type pannalaam. <b>Beam sheet</b> (peyar-la "2 feet" / "3 feed" irundha) → oru adikku (per foot) price podunga; bill-la ella beam sheet-um serthu <i>"Beam Sheet — மொத்தம் N அடி"</i> nu total feet + total amount-aa varum.</div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;cursor:pointer;margin:0;text-transform:none;letter-spacing:0"><input type="checkbox" id="px-on" onchange="pxToggle(this.checked)" style="width:20px;height:20px;margin:0"> Bill-la saved price-ai use pannu</label>
+        <span id="px-state" style="font-size:12.5px"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr auto auto auto auto;gap:10px;align-items:center;margin-bottom:12px">
+        <input id="px-q" placeholder="🔍 Search product" oninput="pxRender()" autocomplete="off" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px">
+        <input id="px-bulk" type="number" min="0" placeholder="₹/day for all" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px;width:140px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:0;text-transform:none;letter-spacing:0;white-space:nowrap"><input type="checkbox" id="px-bulk-empty" checked style="width:auto;margin:0"> only empty rows</label>
+        <button class="btn bo" onclick="pxBulk()">⚡ Fill all</button>
+        <button class="btn bg" onclick="pxSaveAll()">💾 Save All Prices</button>
+      </div>
+      <div id="px-body"></div>
+    </div>
+  </div>
+
   <!-- ═══════════════ DASHBOARD PANE ═══════════════ -->
   <div id="pane-dashboard" class="pane">
     <div class="box">
-      <div class="bh">🏠 Business Overview <button class="rbtn" onclick="renderDashboard(curDashPeriod)">⟳ Refresh</button></div>
+      <div class="bh">🏠 வியாபார நிலவரம் — Business Overview <button class="rbtn" onclick="renderDashboard(curDashPeriod)">⟳ புதுப்பி</button></div>
       <div class="mini-tabs" style="margin-bottom:14px">
-        <div class="mtab" id="dbf-day" onclick="setDashboardPeriod('day')">📅 Day</div>
-        <div class="mtab" id="dbf-week" onclick="setDashboardPeriod('week')">🗓️ Week</div>
-        <div class="mtab" id="dbf-month" onclick="setDashboardPeriod('month')">📆 Month</div>
-        <div class="mtab" id="dbf-year" onclick="setDashboardPeriod('year')">📈 Year</div>
-        <div class="mtab on" id="dbf-all" onclick="setDashboardPeriod('all')">🗂️ All</div>
+        <div class="mtab" id="dbf-day" onclick="setDashboardPeriod('day')">📅 இன்று</div>
+        <div class="mtab" id="dbf-week" onclick="setDashboardPeriod('week')">🗓️ வாரம்</div>
+        <div class="mtab" id="dbf-month" onclick="setDashboardPeriod('month')">📆 மாதம்</div>
+        <div class="mtab" id="dbf-year" onclick="setDashboardPeriod('year')">📈 வருடம்</div>
+        <div class="mtab on" id="dbf-all" onclick="setDashboardPeriod('all')">🗂️ மொத்தம்</div>
       </div>
       <div class="dash-grid" id="dash-main"></div>
     </div>
     <div class="box">
-      <div class="bh" style="color:var(--wn)">🔔 Operational Alerts</div>
+      <div class="bh" style="color:var(--wn)">🔔 முக்கிய எச்சரிக்கைகள்</div>
       <div id="dash-alerts"><div class="loading">Loading…</div></div>
     </div>
+    <div id="dash-money"></div>
     <div class="box">
-      <div class="bh">📦 Rented vs Available Snapshot</div>
-      <div class="dash-grid" id="dash-stock"></div>
+      <div class="bh">⏳ நிலுவை (பாக்கி) விவரம் <span style="font-size:12px;color:var(--mu);font-weight:600">— இப்போதைய நிலவரம்</span></div>
+      <div id="dash-pend"></div>
+    </div>
+    <div class="box">
+      <div class="bh">📦 இருப்பு விவரம் — வெளியே / கையிருப்பு</div>
+      <div class="dash-grid" id="dash-stock" style="display:block"></div>
+    </div>
+    <div class="box">
+      <div class="bh">👷 ஊழியர் விவரம்</div>
+      <div id="dash-emp"></div>
     </div>
   </div>
 
@@ -882,15 +944,20 @@ table.calc-tbl .badge{white-space:nowrap}
       </div>
       <div class="g3" style="margin-top:12px">
         <div class="fl"><label>Repair Cost (Rs)</label><input id="m-cost" type="number" min="0" placeholder="0"></div>
-        <div class="fl"><label>Status</label><select id="m-status"><option>Pending</option><option>In Progress</option><option>Completed</option></select></div>
+        <div class="fl"><label>Work Status — வேலை நிலை</label><select id="m-status"><option>Pending</option><option>In Progress</option><option>Completed</option></select></div>
         <div class="fl"><label>Notes</label><input id="m-notes" placeholder="Vendor / remarks"></div>
+      </div>
+      <div class="g3" style="margin-top:12px">
+        <div class="fl"><label>Payment Status — பணம் நிலை</label><select id="m-pay" onchange="mtPayToggle()"><option value="Unpaid">Unpaid — கொடுக்கல</option><option value="Partly Paid">Partly Paid — பாதி கொடுத்தது</option><option value="Paid">Paid — முழுசா கொடுத்தாச்சு</option></select></div>
+        <div class="fl" id="m-paid-wrap" style="display:none"><label>Amount Paid so far (Rs)</label><input id="m-paid" type="number" min="0" placeholder="0"></div>
+        <div class="fl"><label>Vendor / Mechanic</label><input id="m-vendor" placeholder="Who repaired it"></div>
       </div>
       <div class="acts"><button class="btn bg" onclick="addMaintenance()">➕ Save Record</button></div>
     </div>
     <div class="box">
       <div class="bh">📋 Maintenance Records <span id="maint-total" style="font-size:13px;color:var(--er);font-weight:800"></span></div>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>Date</th><th>Equipment</th><th>Issue</th><th>Cost</th><th>Status</th><th>Notes</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Equipment</th><th>Issue</th><th>Cost</th><th>Work status</th><th>Payment</th><th>Notes</th><th style="min-width:170px"></th></tr></thead>
         <tbody id="maintenance-tbody"></tbody>
       </table></div>
     </div>
@@ -1811,6 +1878,7 @@ function renameProductEverywhere(oldName,newName){
     items(u.inv,'name');
     if(u.snap){ items(u.snap.items,'product'); items(u.snap.missingLog,'product'); }
   });
+  try{ var pi=DB.prices&&DB.prices.items; if(pi){ var nk=String(newName).trim().toLowerCase(); if(pi[o]&&o!==nk){ if(!pi[nk]) pi[nk]=pi[o]; delete pi[o]; n++; } } }catch(e){}
   return n;
 }
 
@@ -1930,7 +1998,7 @@ function mapBill(s){
     id:s.id, billNo:s.bill_no, customer:s.customer, phone:s.phone, address:s.address,
     outDate:s.out_date, inDate:s.in_date, days:s.days, months:s.months,
     advance:s.advance, balance:s.balance, total:s.total, status:s.status,
-    sheetType:s.sheet_type, collected:Number(s.collected)||0, loading:Number(s.loading)||0, discount:Number(s.discount)||0, extra:Number(s.extra)||0, extraNote:s.extra_note||'', less:Number(s.less)||0, extra2:Number(s.extra2)||0, extra2Note:s.extra2_note||'', vrent:Number(s.vrent)||0, vrentShow:s.vrent_show!==false,
+    sheetType:s.sheet_type, collected:Number(s.collected)||0, loading:Number(s.loading)||0, discount:Number(s.discount)||0, extra:Number(s.extra)||0, extraNote:s.extra_note||'', less:Number(s.less)||0, extra2:Number(s.extra2)||0, extra2Note:s.extra2_note||'', vrent:Number(s.vrent)||0, vrentShow:s.vrent_show!==false, prevPending:Number(s.prev_pending)||0, prevPendingMode:s.prev_pending_mode||'',
     date: s.created_at ? new Date(s.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '',
     calcType: ctOf(s),
     items: (s.items||[]).map(function(i){ return {name:i.product,qty:i.qty,price:i.price,monthPrice:mpOf(i),calcType:ctOf(i),type:i.rent_type,amount:i.amount,group:i.group_type||'MAIN'}; })
@@ -1985,7 +2053,7 @@ function apiGetReturns(q,limit){
       id:r.id, returnBillNo:r.return_bill_no, originalBillNo:r.original_bill_no,
       customer:r.customer, phone:r.phone, returnDate:r.return_date, outDate: orig?orig.out_date:null,
       actualDays:r.actual_days, actualMonths:r.actual_months,
-      totalRental:r.total_rental, loading:Number(r.loading)||0, unloading:Number(r.unloading)||0, damage:Number(r.damage)||0, discount:Number(r.discount)||0, extra:Number(r.extra)||0, extraNote:r.extra_note||'', less:Number(r.less)||0, extra2:Number(r.extra2)||0, extra2Note:r.extra2_note||'', vrent:Number(r.vrent)||0, vrentShow:r.vrent_show!==false, prevAdvance:r.prev_advance,
+      totalRental:r.total_rental, loading:Number(r.loading)||0, unloading:Number(r.unloading)||0, damage:Number(r.damage)||0, discount:Number(r.discount)||0, extra:Number(r.extra)||0, extraNote:r.extra_note||'', less:Number(r.less)||0, extra2:Number(r.extra2)||0, extra2Note:r.extra2_note||'', vrent:Number(r.vrent)||0, vrentShow:r.vrent_show!==false, prevPending:Number(r.prev_pending)||0, prevPendingMode:r.prev_pending_mode||'', prevAdvance:r.prev_advance,
       monthlyApplied:Number(r.monthly_applied)||0, collectedApplied:Number(r.collected_applied)||0,
       additionalPay:r.additional_pay, finalBalance:r.final_balance,
       status:r.status, notes:r.notes, missingLog:r.missingLog||[], calcType:ctOf(r), items:retItems, missingItems:missingItems
@@ -2046,7 +2114,7 @@ function apiAddOrder(data){
     sheet_type:data.sheetType||'MAIN', out_date:data.outDate||'', in_date:data.inDate||'',
     days:Number(data.days)||0, months:Number(data.months)||0,
     advance:Number(data.advance)||0, balance:Number(data.balance)||0, total:Number(data.total)||0, loading:Math.max(0,Number(data.loading)||0),
-    discount:Math.max(0,Number(data.discount)||0), extra:Math.max(0,Number(data.extra)||0), extra_note:String(data.extraNote||'').trim(), less:Math.max(0,Number(data.less)||0), extra2:Math.max(0,Number(data.extra2)||0), extra2_note:String(data.extra2Note||'').trim(), vrent:Math.max(0,Number(data.vrent)||0), vrent_contact:String(data.vrentContact||''), vrent_show:data.vrentShow!==false,
+    discount:Math.max(0,Number(data.discount)||0), extra:Math.max(0,Number(data.extra)||0), extra_note:String(data.extraNote||'').trim(), less:Math.max(0,Number(data.less)||0), extra2:Math.max(0,Number(data.extra2)||0), extra2_note:String(data.extra2Note||'').trim(), vrent:Math.max(0,Number(data.vrent)||0), vrent_contact:String(data.vrentContact||''), vrent_show:data.vrentShow!==false, prev_pending:Math.max(0,Math.round(Number(data.prevPending)||0)), prev_pending_mode:String(data.prevPendingMode||''),
     status: Number(data.balance)>0 ? 'PENDING' : 'PAID',
     created_at: new Date().toISOString(),
     calc_type: items.some(function(it){ return it.calcType==='monthly'; }) ? 'monthly' : 'daily',
@@ -2073,7 +2141,7 @@ function apiAddReturn(data){
     id: DB._rid++, return_bill_no:data.returnBillNo, original_bill_no:data.originalBillNo,
     customer:data.customer, phone:data.phone, return_date: data.returnDate || new Date().toISOString(),
     actual_days:Number(data.actualDays)||0, actual_months:Number(data.actualMonths)||0,
-    total_rental:Number(data.totalRental)||0, loading:Math.max(0,Number(data.loading)||0), unloading:Math.max(0,Number(data.unloading)||0), damage:Math.max(0,Number(data.damage)||0), discount:Math.max(0,Number(data.discount)||0), extra:Math.max(0,Number(data.extra)||0), extra_note:String(data.extraNote||'').trim(), less:Math.max(0,Number(data.less)||0), extra2:Math.max(0,Number(data.extra2)||0), extra2_note:String(data.extra2Note||'').trim(), vrent:Math.max(0,Number(data.vrent)||0), vrent_contact:String(data.vrentContact||''), vrent_show:data.vrentShow!==false, prev_advance:Number(data.prevAdvance)||0,
+    total_rental:Number(data.totalRental)||0, loading:Math.max(0,Number(data.loading)||0), unloading:Math.max(0,Number(data.unloading)||0), damage:Math.max(0,Number(data.damage)||0), discount:Math.max(0,Number(data.discount)||0), extra:Math.max(0,Number(data.extra)||0), extra_note:String(data.extraNote||'').trim(), less:Math.max(0,Number(data.less)||0), extra2:Math.max(0,Number(data.extra2)||0), extra2_note:String(data.extra2Note||'').trim(), vrent:Math.max(0,Number(data.vrent)||0), vrent_contact:String(data.vrentContact||''), vrent_show:data.vrentShow!==false, prev_pending:Math.max(0,Math.round(Number(data.prevPending)||0)), prev_pending_mode:String(data.prevPendingMode||''), prev_advance:Number(data.prevAdvance)||0,
     monthly_applied:Math.max(0,Number(data.monthlyApplied)||0), collected_applied:Math.max(0,Number(data.collectedApplied)||0),
     additional_pay:Number(data.additionalPay)||0, final_balance:fb,
     status: fb<=0?'FULLY PAID':'BALANCE DUE', notes:data.notes||'',
@@ -2868,7 +2936,7 @@ window.addEventListener('load',function(){
 });
 
 // ── MAIN TAB SWITCH ───────────────────────────────────────────
-var TAB_ORDER=['dashboard','smallc','sites','clients','stock','customers','employees','attendance','payroll','expenses','income','maintenance','reports','backup','copyright'];
+var TAB_ORDER=['dashboard','smallc','sites','clients','stock','custstock','prices','customers','employees','attendance','payroll','expenses','income','maintenance','reports','backup','copyright'];
 var curDRSub='dispatch';
 function swMain(t){
   TAB_ORDER.forEach(function(n,i){
@@ -2878,6 +2946,8 @@ function swMain(t){
   if(t==='smallc') swSC(curSCSub);
   if(t==='sites'){ loadStock(); renderAllSitesBillsReturns(); }
   if(t==='stock') renderStockManage();
+  if(t==='custstock') csRender();
+  if(t==='prices') pxRender();
   if(t==='dashboard') renderDashboard();
   if(t==='customers') renderCustomers();
   if(t==='employees') renderEmployees();
@@ -3247,7 +3317,7 @@ function buildDObj(peek){
     calcType:items.some(function(i){return i.calcType==='monthly';})?'monthly':'daily',
     customer:val('d-name'),phone:val('d-phone'),address:val('d-addr'),
     outDate:el('d-out').value,inDate:el('d-in').value,days:c.days,months:c.months,
-    items:items,total:c.total,loading:c.loading,discount:c.disc,extra:c.extra,extraNote:val('d-extra-note'),less:c.less,extra2:c.extra2,extra2Note:'',vrent:Math.max(0,Number(val('d-vrent'))||0),vrentContact:val('d-vcon'),vrentShow:(el('d-vshow')?el('d-vshow').checked:true),advance:c.adv,balance:c.bal,sheetType:sType,action:'addOrder'};
+    items:items,total:c.total,loading:c.loading,discount:c.disc,extra:c.extra,extraNote:val('d-extra-note'),less:c.less,extra2:c.extra2,extra2Note:'',vrent:Math.max(0,Number(val('d-vrent'))||0),vrentContact:val('d-vcon'),vrentShow:(el('d-vshow')?el('d-vshow').checked:true),prevPending:ppRead('d').amt,prevPendingMode:ppRead('d').mode,advance:c.adv,balance:c.bal,sheetType:sType,action:'addOrder'};
 }
 function buildRObj(peek){
   var c=calcR();
@@ -3262,7 +3332,7 @@ function buildRObj(peek){
     customer:val('r-name'),phone:val('r-phone'),
     outDate:el('r-out').value,returnDate:el('r-back').value,
     actualDays:c.days,actualMonths:c.months,
-    items:items,totalRental:c.total,loading:rLoading,unloading:c.unloading,damage:c.damage,discount:c.disc,extra:c.extra,extraNote:val('r-extra-note'),less:c.less,extra2:c.extra2,extra2Note:'',vrent:Math.max(0,Number(val('r-vrent'))||0),vrentContact:val('r-vcon'),vrentShow:(el('r-vshow')?el('r-vshow').checked:true),prevAdvance:c.prev,monthlyApplied:c.monthly,collectedApplied:c.coll,additionalPay:c.addP,finalBalance:c.fb,
+    items:items,totalRental:c.total,loading:rLoading,unloading:c.unloading,damage:c.damage,discount:c.disc,extra:c.extra,extraNote:val('r-extra-note'),less:c.less,extra2:c.extra2,extra2Note:'',vrent:Math.max(0,Number(val('r-vrent'))||0),vrentContact:val('r-vcon'),vrentShow:(el('r-vshow')?el('r-vshow').checked:true),prevPending:ppRead('r').amt,prevPendingMode:ppRead('r').mode,prevAdvance:c.prev,monthlyApplied:c.monthly,collectedApplied:c.coll,additionalPay:c.addP,finalBalance:c.fb,
     notes:val('r-notes'),sheetType:'MAIN',action:'addReturn'};
 }
 
@@ -3514,7 +3584,7 @@ function renderSiteWorkspace(){
 '<div class="sr"><span>கூடுதல் கட்டணம் 2 — Additional Charge (Rs) <small style="color:var(--mu)">· on bill</small></span><input type="number" id="so-extra2" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteOut()"></div>'+
 '<div class="sr"><span>🚚 வண்டி வாடகை — Vehicle Rent (Rs) <small style="color:var(--mu)">· separate, not company income</small></span><input type="number" id="so-vrent" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteOut()"></div>'+
 '<div class="sr"><span>Vehicle / Contact</span><select id="so-vcon" style="width:140px;padding:8px 6px">'+vehOptsHTML()+'</select></div>'+
-'<div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="so-vshow" checked style="width:22px;height:22px" onchange="previewSiteOut()"></div>'+
+'<div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="so-vshow" checked style="width:22px;height:22px" onchange="previewSiteOut()"></div>'+ppHTML('so',false,'auto',0)+
 '<div class="sr"><span>Advance Paid (Rs)</span><input type="number" id="so-adv" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteOut()"></div>'+
 '<div class="sr"><span>Balance Due</span><span id="so-sum-bal" style="color:var(--er);font-weight:800;font-size:16px">₹ 0</span></div>'+
 '<div class="sgrand"><span>GRAND TOTAL</span><span id="so-sum-grand">₹ 0</span></div>'+
@@ -3540,7 +3610,7 @@ function renderSiteWorkspace(){
 '<div class="sr"><span>கூடுதல் கட்டணம் 2 — Additional Charge (Rs) <small style="color:var(--mu)">· on bill</small></span><input type="number" id="si-extra2" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteIn()"></div>'+
 '<div class="sr"><span>🚚 வண்டி வாடகை — Vehicle Rent (Rs) <small style="color:var(--mu)">· separate, not company income</small></span><input type="number" id="si-vrent" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteIn()"></div>'+
 '<div class="sr"><span>Vehicle / Contact</span><select id="si-vcon" style="width:140px;padding:8px 6px">'+vehOptsHTML()+'</select></div>'+
-'<div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="si-vshow" checked style="width:22px;height:22px" onchange="previewSiteIn()"></div>'+
+'<div class="sr"><span>Vehicle rent-ai bill-la kaattu <small style="color:var(--mu)">(ON = Total-la serum · OFF = bill-la varaadhu)</small></span><input type="checkbox" id="si-vshow" checked style="width:22px;height:22px" onchange="previewSiteIn()"></div>'+ppHTML('si',false,'auto',0)+
 '<div class="sr"><span>Payment Collecting Amount (Rs)</span><input type="number" id="si-pay" style="width:140px;text-align:right;padding:8px 10px" placeholder="0" min="0" oninput="previewSiteIn()"></div>'+
 '</div></div>'+
       '<div id="si-summary" style="margin-top:10px"></div>'+
@@ -3834,7 +3904,7 @@ function previewSiteOutBill(){
   var items=collectSiteOutFormItems();
   if(!items.length){ toast('⚠ குறைந்தது ஒரு quantity போடுங்க'); return; }
   var date=val('so-date')||td();
-  curBill=buildSiteOutBillObj(site,date,items,(site.outBatches||[]).length+1,Number(val('so-loading'))||0,val('so-expret')||'',Number(val('so-extra'))||0,Number(val('so-less'))||0,'',Number(val('so-lessb'))||0,Number(val('so-extra2'))||0,''); curBill.vrent=Math.max(0,Number(val('so-vrent'))||0); curBill.vrentShow=(el('so-vshow')?el('so-vshow').checked:true); soApplyAdv(curBill,val('so-adv')); curMode='dispatch';
+  curBill=buildSiteOutBillObj(site,date,items,(site.outBatches||[]).length+1,Number(val('so-loading'))||0,val('so-expret')||'',Number(val('so-extra'))||0,Number(val('so-less'))||0,'',Number(val('so-lessb'))||0,Number(val('so-extra2'))||0,''); curBill.vrent=Math.max(0,Number(val('so-vrent'))||0); curBill.vrentShow=(el('so-vshow')?el('so-vshow').checked:true); curBill.prevPending=ppRead('so').amt; soApplyAdv(curBill,val('so-adv')); curMode='dispatch';
   el('bill-content').innerHTML=mkHTML(curBill,false);
   el('bill-modal').style.display='block';
 }
@@ -3859,7 +3929,7 @@ function previewSiteInBill(){
   });
   if(!items.length){ toast('⚠ குறைந்தது ஒரு return quantity போடுங்க'); return; }
   var date=val('si-date')||td(), pay=Number(val('si-pay'))||0, note=val('si-note');
-  curBill=buildSiteInBillObj(site,date,items,pay,note,0,(site.inBatches||[]).length+1,Math.max(0,Number(val('si-damage'))||0),Math.max(0,Number(val('si-unloading'))||0),{date:date,items:items.map(function(it){ return {product:it.name,qty:it.qty,group:it.group}; }),discount:Math.max(0,Number(val('si-disc'))||0),extra:Math.max(0,Number(val('si-extra'))||0),extraNote:'',less:Math.max(0,Number(val('si-lessb'))||0),extra2:Math.max(0,Number(val('si-extra2'))||0),extra2Note:'',vrent:Math.max(0,Number(val('si-vrent'))||0),vrentShow:(el('si-vshow')?el('si-vshow').checked:true)}); curMode='return';
+  curBill=buildSiteInBillObj(site,date,items,pay,note,0,(site.inBatches||[]).length+1,Math.max(0,Number(val('si-damage'))||0),Math.max(0,Number(val('si-unloading'))||0),{date:date,items:items.map(function(it){ return {product:it.name,qty:it.qty,group:it.group}; }),discount:Math.max(0,Number(val('si-disc'))||0),extra:Math.max(0,Number(val('si-extra'))||0),extraNote:'',less:Math.max(0,Number(val('si-lessb'))||0),extra2:Math.max(0,Number(val('si-extra2'))||0),extra2Note:'',vrent:Math.max(0,Number(val('si-vrent'))||0),vrentShow:(el('si-vshow')?el('si-vshow').checked:true)}); curBill.prevPending=ppRead('si').amt; curMode='return';
   el('bill-content').innerHTML=mkHTML(curBill,true);
   el('bill-modal').style.display='block';
 }
@@ -3904,7 +3974,7 @@ function viewSiteInBatch(siteId,idx){
     date:fdt(b.date), customer:site.customer, phone:site.phone,
     outDate:'—', returnDate:b.date, actualDays:'—', actualMonths:'—',
     items:mapped, totalRental:b.rentCharged||0, prevAdvance:0, additionalPay:b.payment||0,
-    finalBalance:0, damage:Number(b.damage)||0, unloading:Number(b.unloading)||0, isSite:true, notes:b.note||''};
+    finalBalance:0, damage:Number(b.damage)||0, unloading:Number(b.unloading)||0, isSite:true, notes:b.note||'', prevPending:Number(b.prevPending)||0};
   curMode='return';
   el('bill-content').innerHTML=mkHTML(curBill,true);
   el('bill-modal').style.display='block';
@@ -4025,7 +4095,7 @@ function renderAllSitesBillsReturns(){
 function viewSiteFullBill(){
   var site=findSiteById(curSiteId); if(!site){ toast('⚠ Open a site first'); return; }
   var t=computeSiteTotals(site);
-  el('bill-content').innerHTML=vbSheetPreview(vbSiteOpts(site,t));
+  el('bill-content').innerHTML=vbRentSwitch()+ppSiteHTML(site)+vbSheetPreview(vbSiteOpts(site,t));
   curMode='sitefull';
   el('bill-modal').style.display='block';
 }
@@ -4078,7 +4148,7 @@ function viewSiteFullBill_legacy(){
 function downloadSiteFullBill(){
   var site=findSiteById(curSiteId); if(!site){ toast('⚠ Open a site first'); return; }
   var t=computeSiteTotals(site);
-  vbSheetPDF(vbSiteOpts(site,t), site.site_no+'_FullStatement.pdf')
+  vbSheetPDF(vbSiteOpts(site,t,true), site.site_no+'_FullStatement.pdf')
     .then(function(ok){ if(ok) toast('✅ Full site bill downloaded!'); })
     .catch(function(e){ console.error('Sheet PDF failed', e); toast('⚠ PDF could not be created — please try again'); });
 }
@@ -4229,6 +4299,7 @@ function submitSiteOut(){
   if(r.status==='ok'){
     toast('✅ OUT batch added! Generating PDF…');
     curBill=buildSiteOutBillObj(site,date,items,batchNo,loadingAmt,expRet,extraAmt,lessAmt,extraNote,lessB,extra2Amt,extra2Note); curMode='dispatch';
+    var _pp=ppRead('so'); curBill.prevPending=_pp.amt; { var _ob=site.outBatches[batchNo-1]; if(_ob){ _ob.prevPending=_pp.amt; _ob.prevPendingMode=_pp.mode; saveDB(); } }
     if(vr>0){ var ob=site.outBatches[batchNo-1]; if(ob){ ob.vrent=vr; ob.vrentContact=vc; ob.vrentShow=vs; } curBill.vrent=vr; curBill.vrentShow=vs; ctAddBillTrip(vc, date, site.customer+' — '+site.site_no+(site.address?', '+site.address:''), vr, curBill.billNo); }
     if(advAmt>0){ var pr=apiSettleSitePayment(curSiteId, advAmt, 'Advance with '+site.site_no+'-OUT-'+batchNo, date, 'Cash'); if(pr.status==='ok'){ var ob2=site.outBatches[batchNo-1]; if(ob2){ ob2.advance=advAmt; ob2.advanceReceipt=pr.receiptNo; saveDB(); } } else { advAmt=0; toast('⚠ Advance not saved: '+(pr.message||'error'),6000); } }
     soApplyAdv(curBill,advAmt);
@@ -4265,7 +4336,8 @@ function submitSiteIn(){
   if(r.status==='ok'){
     if(vr>0){ var ib=site.inBatches[batchNo-1]; if(ib){ ib.vrent=vr; ib.vrentContact=vc; ib.vrentShow=vs; } ctAddBillTrip(vc, date, site.customer+' — '+site.site_no+(site.address?', '+site.address:''), vr, site.site_no+'-IN-'+batchNo); }
     toast('✅ Return recorded — Rent charged ₹'+fmt(r.rentCharged||0)+'. Generating PDF…');
-    curBill=buildSiteInBillObj(site,date,items,pay,note,r.rentCharged||0,batchNo,damageAmt,unloadAmt,site.inBatches[batchNo-1]); curMode='return';
+    var _pi=ppRead('si'); { var _ib=site.inBatches[batchNo-1]; if(_ib){ _ib.prevPending=_pi.amt; _ib.prevPendingMode=_pi.mode; saveDB(); } }
+    curBill=buildSiteInBillObj(site,date,items,pay,note,r.rentCharged||0,batchNo,damageAmt,unloadAmt,site.inBatches[batchNo-1]); curMode='return'; curBill.prevPending=_pi.amt;
     el('bill-content').innerHTML=mkHTML(curBill,true);
     el('bill-modal').style.display='block';
     renderSiteWorkspace(); loadStock(); loadPending();
@@ -4753,7 +4825,7 @@ function vbBillOpts(b,isR){
       var det = daysNum
         ? rentDetailText(b.outDate,hasTo?b.inDate:'',b.days,it.price,ct,mp,false)
         : (sDate(b.outDate)+' \u2192 open  \u00B7  '+(ct==='monthly'?('1 Month \u20B9'+mp+' + \u20B9'+it.price+'/day after day 30'):('\u20B9'+it.price+'/day'))+' (open)');
-      items.push({qty:it.qty, name:it.name, detail:det, amt:it.amount});
+      items.push({qty:it.qty, name:it.name, detail:det, amt:it.amount, price:it.price, mp:mp, ct:ct});
     });
     var dsc=Math.max(0,Number(b.discount)||0), ext=Math.max(0,Number(b.extra)||0), lsB=Math.max(0,Number(b.less)||0), ex2=Math.max(0,Number(b.extra2)||0);
     var vrIn=((Number(b.vrent)||0)>0&&b.vrentShow!==false)?Number(b.vrent):0;
@@ -4779,7 +4851,7 @@ function vbBillOpts(b,isR){
     var qShow=(Number(it.qty)||0)-(ms?(ms.sub[vbKey(it.name)]||0):0); if(qShow<=0) return;
     var det=it.detailText!==undefined?it.detailText:(it.price>0 && typeof b.actualDays==='number')?rentDetailText(b.outDate,b.returnDate,b.actualDays,it.price,ctOf(it),mpOf(it),false):'';
     if(it.missing>0) det+=(det?'  ':'')+'\u26A0 '+it.missing+' '+VB_L.missing;
-    items.push({qty:qShow, name:it.name, detail:det, amt:(Number(it.amount)>0?it.amount:'')});
+    items.push({qty:qShow, name:it.name, detail:det, amt:(Number(it.amount)>0?it.amount:''), price:it.price, mp:mpOf(it), ct:ctOf(it)});
   });
   if(ms) ms.rows.forEach(function(r){ items.push(r); });
   if(ms && ms.notes) items.push({qty:'',name:'குறிப்பு : '+ms.notes,detail:'',amt:''});
@@ -6193,12 +6265,36 @@ function deleteIncome(id){
 // ══════════════════════════════════════════════════════════════
 // MAINTENANCE
 // ══════════════════════════════════════════════════════════════
+function mtNorm(r){
+  if(!r) return r;
+  if(!Array.isArray(r.payments)) r.payments=[];
+  if(r.paid==null){ r.paid=r.payments.reduce(function(s,x){return s+(Number(x.amount)||0);},0); }
+  if(!r.payStatus) r.payStatus='Unpaid';
+  return r;
+}
+function mtRecalcPay(r){
+  r.paid=Math.round(r.payments.reduce(function(s,x){ return s+(Number(x.amount)||0); },0)*100)/100;
+  var cost=Number(r.cost)||0;
+  r.payStatus = (r.paid<=0) ? 'Unpaid' : (r.paid>=cost && cost>=0 ? 'Paid' : 'Partly Paid');
+}
+function mtPayToggle(){ var w=el('m-paid-wrap'); if(w) w.style.display = (el('m-pay').value==='Partly Paid') ? '' : 'none'; }
 function addMaintenance(){
   var item=val('m-item'), issue=val('m-issue');
   if(!item||!issue){ toast('⚠ Enter equipment and issue'); return; }
-  DB.maintenance.push({id:DB._mid++, item:item, issue:issue, date:val('m-date')||td(), cost:Number(val('m-cost'))||0, status:el('m-status').value, notes:val('m-notes')});
+  var cost=Math.max(0,Number(val('m-cost'))||0), ps=el('m-pay').value, date=val('m-date')||td(), payments=[];
+  if(ps==='Paid'){ if(cost>0) payments.push({id:1,date:date,amount:cost,mode:'Cash',note:'Paid at entry'}); }
+  else if(ps==='Partly Paid'){
+    var pd=Math.max(0,Number(val('m-paid'))||0);
+    if(!(pd>0)||pd>=cost){ toast('⚠ Partly Paid-னா, Repair Cost-ஐ விட குறைவா Amount Paid போடுங்க'); return; }
+    payments.push({id:1,date:date,amount:pd,mode:'Cash',note:'Part payment at entry'});
+  }
+  var rec={id:DB._mid++, item:item, issue:issue, date:date, cost:cost, status:el('m-status').value, notes:val('m-notes'), vendor:val('m-vendor'), payments:payments, paid:0, payStatus:'Unpaid'};
+  if(rec.status==='Completed') rec.completedDate=td();
+  mtRecalcPay(rec); if(ps==='Paid'&&cost<=0) rec.payStatus='Paid';
+  DB.maintenance.push(rec);
   saveDB();
-  el('m-item').value=''; el('m-issue').value=''; el('m-cost').value=''; el('m-notes').value='';
+  ['m-item','m-issue','m-cost','m-notes','m-vendor','m-paid'].forEach(function(i){ if(el(i)) el(i).value=''; });
+  el('m-pay').value='Unpaid'; mtPayToggle();
   toast('✅ Maintenance record saved');
   renderMaintenance();
 }
@@ -6207,16 +6303,72 @@ function maintBadge(status){
   if(status==='In Progress') return 'b-wn';
   return 'b-lo';
 }
+function mtPayBadge(s){ return s==='Paid'?'b-ok':(s==='Partly Paid'?'b-wn':'b-lo'); }
 function renderMaintenance(){
-  var rows=DB.maintenance.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||'') || b.id-a.id; });
-  var total=rows.reduce(function(s,x){ return s+(Number(x.cost)||0); },0);
-  el('maint-total').textContent = rows.length? 'Total Cost: ₹'+fmt(total) : '';
-  if(!rows.length){ el('maintenance-tbody').innerHTML='<tr><td colspan="7" class="empty">No maintenance records</td></tr>'; return; }
+  var rows=DB.maintenance.slice().map(mtNorm).sort(function(a,b){ return (b.date||'').localeCompare(a.date||'') || b.id-a.id; });
+  var total=rows.reduce(function(s,x){ return s+(Number(x.cost)||0); },0), paid=rows.reduce(function(s,x){ return s+(Number(x.paid)||0); },0);
+  el('maint-total').textContent = rows.length? 'Total Cost: ₹'+fmt(total)+'  ·  Paid: ₹'+fmt(paid)+'  ·  Balance: ₹'+fmt(Math.max(0,total-paid)) : '';
+  if(!rows.length){ el('maintenance-tbody').innerHTML='<tr><td colspan="8" class="empty">No maintenance records</td></tr>'; return; }
   el('maintenance-tbody').innerHTML = rows.map(function(r){
-    return '<tr><td>'+fmtDate(r.date)+'</td><td>'+esc(r.item)+'</td><td>'+esc(r.issue)+'</td><td>₹'+fmt(r.cost)+'</td>'+
-      '<td><span class="badge '+maintBadge(r.status)+'">'+r.status+'</span></td><td>'+esc(r.notes||'')+'</td>'+
-      '<td><button class="btn br" style="padding:5px 10px" onclick="deleteMaintenance('+r.id+')">🗑</button></td></tr>';
+    var bal=Math.max(0,(Number(r.cost)||0)-(Number(r.paid)||0));
+    var sel='<select onchange="setMaintStatus('+r.id+',this.value)" style="padding:5px 6px;font-size:12px;border:1px solid var(--bd);border-radius:6px;width:auto">'+['Pending','In Progress','Completed'].map(function(o){ return '<option'+(r.status===o?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>';
+    return '<tr><td>'+fmtDate(r.date)+'</td><td>'+esc(r.item)+(r.vendor?'<div style="font-size:11px;color:var(--mu)">🔧 '+esc(r.vendor)+'</div>':'')+'</td><td>'+esc(r.issue)+'</td><td>₹'+fmt(r.cost)+'</td>'+
+      '<td>'+sel+(r.completedDate&&r.status==='Completed'?'<div style="font-size:11px;color:var(--mu)">'+fmtDate(r.completedDate)+'</div>':'')+'</td>'+
+      '<td><span class="badge '+mtPayBadge(r.payStatus)+'">'+(r.payStatus==='Paid'?'Paid ✔':r.payStatus==='Partly Paid'?'Partly Paid':'Unpaid')+'</span>'+((Number(r.cost)||0)>0?'<div style="font-size:11px;color:var(--mu);margin-top:3px">Paid ₹'+fmt(r.paid)+(bal>0?' · Balance <b style="color:var(--er)">₹'+fmt(bal)+'</b>':'')+'</div>':'')+'</td>'+
+      '<td>'+esc(r.notes||'')+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn bg" style="padding:5px 9px;font-size:11.5px" onclick="mtPay('+r.id+')" title="Payment record பண்ணு">💰 Pay</button> <button class="btn bo" style="padding:5px 9px;font-size:11.5px" onclick="mtEdit('+r.id+')">✏ Edit</button> <button class="btn br" style="padding:5px 9px;font-size:11.5px" onclick="deleteMaintenance('+r.id+')">🗑</button></td></tr>';
   }).join('');
+}
+function setMaintStatus(id,st){
+  var r=DB.maintenance.find(function(x){ return x.id===id; }); if(!r) return;
+  r.status=st; if(st==='Completed'){ if(!r.completedDate) r.completedDate=td(); } else delete r.completedDate;
+  saveDB(); toast('✅ Status → '+st); renderMaintenance(); try{ if(el('pane-dashboard').classList.contains('on')) renderDashboard(); }catch(e){}
+}
+// small modal used by Pay / Edit
+function mtModal(title,body,onSave,saveLabel){
+  var old=el('mt-modal'); if(old) old.remove();
+  var m=document.createElement('div'); m.id='mt-modal'; m.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99998;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px 8px';
+  m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;padding:18px 18px 14px;box-shadow:0 20px 60px rgba(0,0,0,.35)"><h3 style="margin:0 0 10px;font-size:17px">'+title+'</h3><div id="mt-body">'+body+'</div><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px"><button class="btn bo" type="button" id="mt-cancel">Cancel</button>'+(onSave?'<button class="btn bg" type="button" id="mt-save">'+(saveLabel||'💾 Save')+'</button>':'')+'</div></div>';
+  document.body.appendChild(m);
+  el('mt-cancel').onclick=function(){ m.remove(); };
+  if(onSave) el('mt-save').onclick=function(){ try{ if(onSave()!==false) m.remove(); }catch(e){ console.error(e); toast('⚠ '+e.message,6000); } };
+  return m;
+}
+function mtField(label,id,v,type,extra){ return '<div class="fl"><label>'+label+'</label><input id="'+id+'" type="'+(type||'text')+'" '+(type==='number'?'min="0" step="any" ':'')+(extra||'')+' value="'+esc(v==null?'':v)+'"></div>'; }
+function mtPay(id){
+  var r=mtNorm(DB.maintenance.find(function(x){ return x.id===id; })); if(!r) return;
+  var cost=Number(r.cost)||0, bal=Math.max(0,cost-(Number(r.paid)||0));
+  if(!(cost>0)){ alert('இந்த record-க்கு Repair Cost 0. முதல்ல ✏ Edit-ல Cost போடுங்க.'); return; }
+  mtModal('💰 Payment — '+esc(r.item),
+    '<div class="note">Repair cost ₹'+fmt(cost)+' · Paid ₹'+fmt(r.paid)+' · <b>Balance ₹'+fmt(bal)+'</b></div>'+
+    '<div class="g3">'+mtField('Amount (Rs)','mt-amt',bal||'','number')+mtField('Date','mt-date',td(),'date')+
+    '<div class="fl"><label>Mode</label><select id="mt-mode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div></div>'+
+    '<div class="g3" style="margin-top:8px">'+mtField('Note','mt-note','','text')+'</div>',
+    function(){
+      var amt=Math.max(0,Number(val('mt-amt'))||0);
+      if(!(amt>0)) throw new Error('Amount போடுங்க');
+      if(amt>bal+0.001) throw new Error('Balance ₹'+fmt(bal)+'-ஐ விட அதிகம் கொடுக்க முடியாது');
+      r.payments.push({id:(r.payments.reduce(function(m,x){ return Math.max(m,x.id||0); },0)+1),date:val('mt-date')||td(),amount:amt,mode:el('mt-mode').value,note:val('mt-note')});
+      mtRecalcPay(r); saveDB(); toast('✅ ₹'+fmt(amt)+' payment saved — '+r.payStatus); renderMaintenance();
+    },'💾 Save payment');
+}
+function mtEdit(id){
+  var r=mtNorm(DB.maintenance.find(function(x){ return x.id===id; })); if(!r) return;
+  function pays(){ return r.payments.length? '<table style="width:100%;font-size:12.5px"><thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Note</th><th></th></tr></thead><tbody>'+r.payments.map(function(p,i){ return '<tr><td>'+fmtDate(p.date)+'</td><td>₹'+fmt(p.amount)+'</td><td>'+esc(p.mode||'')+'</td><td>'+esc(p.note||'')+'</td><td><button class="btn br" type="button" style="padding:3px 8px;font-size:11px" data-pi="'+i+'">🗑</button></td></tr>'; }).join('')+'</tbody></table>' : '<div style="font-size:12px;color:var(--mu)">No payments yet</div>'; }
+  var body='<div class="g3">'+mtField('Equipment / Item *','mt-item',r.item)+mtField('Issue / Breakdown *','mt-issue',r.issue)+mtField('Date','mt-date',toISODate(r.date)||td(),'date')+'</div>'+
+    '<div class="g3" style="margin-top:10px">'+mtField('Repair Cost (Rs)','mt-cost',r.cost||'','number')+
+    '<div class="fl"><label>Work Status</label><select id="mt-status">'+['Pending','In Progress','Completed'].map(function(o){ return '<option'+(r.status===o?' selected':'')+'>'+o+'</option>'; }).join('')+'</select></div>'+mtField('Vendor / Mechanic','mt-vendor',r.vendor||'')+'</div>'+
+    '<div class="g3" style="margin-top:10px">'+mtField('Notes','mt-notes',r.notes||'')+'</div>'+
+    '<div style="margin-top:12px;font-weight:800;font-size:13px">💰 Payments <span id="mt-paysum" style="font-weight:600;color:var(--mu)"></span></div><div id="mt-paylist" style="margin-top:6px">'+pays()+'</div>';
+  var m=mtModal('✏ Edit — '+esc(r.item),body,function(){
+    var item=val('mt-item'), issue=val('mt-issue'); if(!item||!issue) throw new Error('Equipment and issue போடுங்க');
+    var cost=Math.max(0,Number(val('mt-cost'))||0), paidNow=r.payments.reduce(function(s,x){ return s+(Number(x.amount)||0); },0);
+    if(cost+0.001<paidNow) throw new Error('Repair Cost ₹'+fmt(cost)+', ஏற்கனவே கொடுத்த ₹'+fmt(paidNow)+'-ஐ விட குறைவா இருக்க கூடாது');
+    r.item=item; r.issue=issue; r.date=val('mt-date')||r.date; r.cost=cost; r.vendor=val('mt-vendor'); r.notes=val('mt-notes');
+    var st=el('mt-status').value; if(st!==r.status){ r.status=st; if(st==='Completed'){ if(!r.completedDate) r.completedDate=td(); } else delete r.completedDate; }
+    mtRecalcPay(r); saveDB(); toast('✅ Record updated'); renderMaintenance();
+  });
+  m.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('[data-pi]'); if(!b) return; if(!confirm('இந்த payment-ஐ நீக்கணுமா?')) return; r.payments.splice(+b.getAttribute('data-pi'),1); mtRecalcPay(r); el('mt-paylist').innerHTML=pays(); });
 }
 function deleteMaintenance(id){
   if(!confirm('Delete this maintenance record?')) return;
@@ -6280,6 +6432,8 @@ function renderDashboard(period){
   if(payrollDue>0) alerts.push('💵 ₹'+fmt(payrollDue)+' in payroll balance still to be paid.');
   var pendingMaint=DB.maintenance.filter(function(m){ return m.status!=='Completed'; });
   if(pendingMaint.length>0) alerts.push('🛠️ '+pendingMaint.length+' maintenance record(s) not yet completed.');
+  var unpaidMaint=DB.maintenance.map(mtNorm).filter(function(m){ return (Number(m.cost)||0)-(Number(m.paid)||0)>0.001; });
+  if(unpaidMaint.length>0) alerts.push('🔧 Maintenance payment baaki: '+unpaidMaint.length+' record(s) — ₹'+fmt(unpaidMaint.reduce(function(s,m){ return s+(Number(m.cost)||0)-(Number(m.paid)||0); },0)));
   el('dash-alerts').innerHTML = alerts.length
     ? alerts.map(function(a){ return '<div class="note" style="border-color:var(--wn);background:#fff8ec;color:#8a5a06">'+a+'</div>'; }).join('')
     : '<div class="empty">No alerts — everything looks good ✅</div>';
@@ -6343,7 +6497,7 @@ function showReport(id){
     html=reportTable(['Month','Employee','Net','Advance','Balance','Status'], rows.map(function(r){ return [r.month, empName(r.emp_id), '₹'+fmt(r.net), '₹'+fmt(r.advance), '₹'+fmt(r.balance), r.status]; }));
   } else if(id==='maintenance'){
     var rows=DB.maintenance.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
-    html=reportTable(['Date','Equipment','Issue','Cost','Status'], rows.map(function(r){ return [fmtDate(r.date), r.item, r.issue, '₹'+fmt(r.cost), r.status]; }));
+    html=reportTable(['Date','Equipment','Issue','Cost','Work status','Payment','Paid','Balance'], rows.map(function(r){ mtNorm(r); return [fmtDate(r.date), r.item, r.issue, '₹'+fmt(r.cost), r.status, r.payStatus, '₹'+fmt(r.paid), '₹'+fmt(Math.max(0,(Number(r.cost)||0)-(Number(r.paid)||0)))]; }));
   } else if(id==='activity'){
     html='<div class="summary-stats">'+
       '<div class="stat-card"><div class="sv" style="color:var(--pri-d)">'+DB.sales.length+'</div><div class="sl">Dispatch Bills</div></div>'+
@@ -6620,13 +6774,13 @@ function vbPrintSheets(opts){
 function printBill(){
   var opts=null;
   if(curMode==='custom'&&window.__customSheet) opts=window.__customSheet.opts;
-  else if(curMode==='sitefull'){ var st=findSiteById(curSiteId); if(st) opts=vbSiteOpts(st,computeSiteTotals(st)); }
+  else if(curMode==='sitefull'){ var st=findSiteById(curSiteId); if(st) opts=vbSiteOpts(st,computeSiteTotals(st),true); }
   else if(curMode==='salary'&&curBill){ vbPreviewHtml('Salary slip',mkSalaryHTML(curBill)); return; }
   else if(curBill){ opts=vbBillOpts(curBill,curMode==='return'); }
   if(!opts){ toast('⚠ Open a bill first'); return; }
   vbPrintSheets(opts);
 }
-function printSiteFullBill(){ var st=findSiteById(curSiteId); if(!st){ toast('⚠ Open a site first'); return; } vbPrintSheets(vbSiteOpts(st,computeSiteTotals(st))); }
+function printSiteFullBill(){ var st=findSiteById(curSiteId); if(!st){ toast('⚠ Open a site first'); return; } vbPrintSheets(vbSiteOpts(st,computeSiteTotals(st),true)); }
 function printSiteMissingBill(){
   var st=findSiteById(curSiteId); if(!st){ toast('⚠ Open a site first'); return; }
   if(!(st.missingItems||[]).length){ toast('⚠ No missing items on this site'); return; }
@@ -7394,17 +7548,31 @@ function viewSiteInBatch(siteId,idx){
   el('bill-content').innerHTML=mkHTML(curBill,true);
   el('bill-modal').style.display='block';
 }
+// Full Site Bill — the on-screen VIEW always shows the "மொத்த வாடகை" (total rent) row. For PDF / Print / WhatsApp the row is
+// shown only when the switch "மொத்த வாடகை kaattu" in the Full Bill window is ON (default OFF). Totals are the same either way.
+function vbRentOn(){ return !!(DB.prefs&&DB.prefs.showTotalRent); }
+function vbSiteOpts(site,t,forFile){
+  var o=vbSiteOptsFull(site,t);
+  if(forFile && !vbRentOn()) o.tail=(o.tail||[]).filter(function(r){ return r.label!==VB_L.rent; });
+  return o;
+}
+function vbRentSwitch(){
+  return '<div id="bm-rent-sw" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;color:#92400e"><input type="checkbox" id="bm-rent-on" '+(vbRentOn()?'checked':'')+' onchange="vbRentSet(this.checked)" style="width:18px;height:18px;margin:0"> மொத்த வாடகை — PDF / Print / WhatsApp-ல kaattu</label>'+
+    '<span style="font-size:12px;color:#78350f">ON = kaattum · OFF = maraikkum (Screen view-la eppavum kaattum)</span></div>';
+}
+function vbRentSet(on){ DB.prefs=DB.prefs||{}; DB.prefs.showTotalRent=!!on; saveDB(); toast(on?'✔ PDF-la மொத்த வாடகை varum':'✔ PDF-la மொத்த வாடகை varaadhu'); }
 // Full site statement: every lot with its rending date, return date, days, rate and amount.
-function vbSiteOpts(site,t){
+function vbSiteOptsFull(site,t){
   var D=siteDetail(site), items=[], g={}, rent=0;
   D.returns.sort(function(a,b){ return String(a.inDate).localeCompare(String(b.inDate))||String(a.outDate).localeCompare(String(b.outDate)); });
   D.returns.forEach(function(r){
     var k='R|'+r.product+'|'+r.outDate+'|'+r.inDate+'|'+r.price+'|'+r.days+'|'+ctOf(r)+'|'+mpOf(r);
     if(g[k]){ g[k].qty+=r.qty; g[k].amt=round2(g[k].amt+r.amount); }
-    else { g[k]={qty:r.qty,name:r.product,detail:siteLineDetail(r.outDate,r.inDate,r.price,r.days,false,r),amt:r.amount}; items.push(g[k]); }
+    else { g[k]={qty:r.qty,name:r.product,detail:siteLineDetail(r.outDate,r.inDate,r.price,r.days,false,r),amt:r.amount,price:r.price,mp:mpOf(r),ct:ctOf(r)}; items.push(g[k]); }
     rent+=r.amount;
   });
-  D.pending.forEach(function(p){ items.push({qty:p.qty,name:p.product,detail:siteLineDetail(p.outDate,'',p.price,p.days,true,p),amt:p.amount}); rent+=p.amount; });
+  D.pending.forEach(function(p){ items.push({qty:p.qty,name:p.product,detail:siteLineDetail(p.outDate,'',p.price,p.days,true,p),amt:p.amount,price:p.price,mp:mpOf(p),ct:ctOf(p)}); rent+=p.amount; });
   (site.missingItems||[]).slice().sort(function(x,y){ return isoDayNum(x.markedDate)-isoDayNum(y.markedDate); }).forEach(function(m){
     var a=0, det, mp=Number(m.price)||0;
     if(m.resolved && m.chargeType==='fixed'){ a=Number(m.fixedAmount)||0; det='⚠ '+VB_L.missing+' · '+sDate(m.sourceDate)+' → '+sDate(m.markedDate)+' · ஒரே தொகை'; }
@@ -8368,6 +8536,27 @@ function tripsRename(oldNo,newNo){
 function payLogFor(ref){ return (DB.paymentLog||[]).filter(function(p){ return p.ref===ref; }); }
 function sum(a,f){ return a.reduce(function(s,x){ return s+num(f(x)); },0); }
 
+// ── Vehicle rent (வண்டி வாடகை) — editable in every edit screen ──
+function vehFields(vr,vcon,vshow){
+  return '<div class="ed-sec">🚚 வண்டி வாடகை — Vehicle Rent <span style="font-weight:600;color:var(--mu)">(company income-ல சேராது · separate record)</span></div><div class="ed-grid">'+
+    field('வண்டி வாடகை (Rs)','ed-vrent',vr||'','number')+
+    '<div><label>Vehicle / Contact</label><select id="ed-vcon">'+vehOptsHTML(vcon)+'</select></div>'+
+    '<div><label>Bill-la kaattu (ON = Total-la serum)</label><label style="display:flex;gap:8px;align-items:center;font-size:13px;color:#1e293b"><input type="checkbox" id="ed-vshow" '+(vshow!==false?'checked':'')+' style="width:auto"> Bill-la kaattu</label></div></div>';
+}
+function vehRead(){ var s=$('ed-vcon'); return {vr:gn('ed-vrent'), vc:s?String(s.value||''):'', vs:$('ed-vshow')?$('ed-vshow').checked:true}; }
+function vehIn(){ var v=vehRead(); return v.vs?v.vr:0; }
+function vehValid(v){ if(v.vr>0&&!v.vc) throw new Error('Vehicle Rent போட்டா Vehicle / Contact தேர்வு பண்ணுங்க'); }
+// keep the contact's trip (history / Given / Due) in step with the edited bill; a trip already marked paid stays paid
+function vehTripSync(no,date,siteTxt,v){
+  var old=null, owner=null;
+  (DB.customers||[]).forEach(function(c){ (c.trips||[]).forEach(function(t){ if(t.fromBill&&t.billNo===no&&!old){ old=t; owner=c; } }); });
+  if(!(v.vr>0)){ if(old) tripsRemove(no); return; }
+  if(old&&String(owner.id)===String(v.vc)){ old.amount=v.vr; old.date=toISODate(date)||old.date; old.site=String(siteTxt||old.site||'').trim()||old.site; return; }
+  var wasPaid=old?!!old.paid:false; if(old) tripsRemove(no);
+  ctAddBillTrip(v.vc,date,siteTxt,v.vr,no);
+  if(wasPaid){ var c2=ctFind(v.vc); if(c2) (c2.trips||[]).forEach(function(t){ if(t.fromBill&&t.billNo===no) t.paid=true; }); }
+}
+
 function edRefresh(){
   ['loadStock','renderStockManage','loadPending','loadMissing','refreshAlerts','renderCtDash','clRender','loadMonthlyBills'].forEach(function(f){
     try{ if(typeof window[f]==='function') window[f](); }catch(e){}
@@ -8403,15 +8592,15 @@ window.edEditDispatch=function(billNo){
   if(rets.length||s.status==='RETURNED') return edEditHeader('dispatch',s,rets);
   var rows=(s.items||[]).map(function(it){ return {product:it.product,qty:num(it.qty),price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group_type||'MAIN',oldQty:num(it.qty)}; });
   var coll=num(s.collected)+monthlyCollected(billNo);
-  var vrIn=(s.vrent_show!==false)?n0(s.vrent):0;
   var o={rates:true,add:true};
   var body='<div class="ed-grid">'+field('Customer name','ed-name',s.customer)+field('Phone','ed-phone',s.phone)+field('Address','ed-addr',s.address||'')+
     field('OUT date','ed-out',toISODate(s.out_date),'date')+field('IN date (expected)','ed-in',toISODate(s.in_date),'date')+field('Advance paid','ed-adv',s.advance||'','number')+'</div>'+
     '<div class="ed-sec">📦 Items</div><div id="ed-items"></div>'+
     chargeFields({loading:s.loading,discount:s.discount,less:s.less,extra:s.extra,extra2:s.extra2})+
+    vehFields(s.vrent,s.vrent_contact,s.vrent_show)+ppEdBill(s,[billNo])+
     '<div class="ed-sum" id="ed-sum"></div>';
   var calc=function(){
-    collectRows(rows);
+    collectRows(rows); var vrIn=vehIn();
     var d=dur(g('ed-out'),g('ed-in')), total=0;
     rows.forEach(function(r){ if(r.qty>0&&d.ok) total+=calcItemAmount(r.qty,d.days,num(r.price),num(r.monthPrice),r.calcType==='monthly'?'monthly':'daily'); });
     var grand=Math.max(0,total+gn('ed-loading')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less'));
@@ -8419,8 +8608,8 @@ window.edEditDispatch=function(billNo){
     $('ed-sum').innerHTML='<span>Duration: <b>'+(d.ok?d.days+'d / '+d.months+'mo':'check dates')+'</b></span><span>Rental: <b>'+R(total)+'</b></span><span>Grand total: <b>'+R(grand)+'</b></span><span>Balance: <b>'+R(bal)+'</b></span>';
     return {d:d,total:total,grand:grand,bal:bal};
   };
-  edOpen('✏ Edit Dispatch Bill — '+E(billNo),'Qty / rate / dates / charges மாத்தலாம். Stock தானாக adjust ஆகும்.'+(coll>0?' · இதுவரை collect பண்ண payments: '+R(coll):'')+(vrIn>0?' · Vehicle rent '+R(vrIn)+' (மாற்ற முடியாது)':''),body,function(){
-    var c=calc(); collectRows(rows);
+  edOpen('✏ Edit Dispatch Bill — '+E(billNo),'Qty / rate / dates / charges மாத்தலாம். Stock தானாக adjust ஆகும்.'+(coll>0?' · இதுவரை collect பண்ண payments: '+R(coll):''),body,function(){
+    var c=calc(); collectRows(rows); var vv=vehRead(); vehValid(vv);
     if(!g('ed-name')) throw new Error('Customer name போடுங்க');
     if(!g('ed-phone')) throw new Error('Phone number போடுங்க');
     if(!c.d.ok) throw new Error('IN date, OUT date-க்கு முன்னாடி இருக்க கூடாது (dates check பண்ணுங்க)');
@@ -8434,6 +8623,9 @@ window.edEditDispatch=function(billNo){
     s.customer=g('ed-name'); s.phone=g('ed-phone'); s.address=g('ed-addr');
     s.out_date=g('ed-out'); s.in_date=g('ed-in'); s.days=c.d.days; s.months=c.d.months;
     s.advance=gn('ed-adv'); s.loading=gn('ed-loading'); s.discount=gn('ed-disc'); s.less=gn('ed-less'); s.extra=gn('ed-extra'); s.extra2=gn('ed-extra2');
+    s.vrent=vv.vr; s.vrent_contact=vv.vc; s.vrent_show=vv.vs;
+    { var _pp=ppRead('ed'); s.prev_pending=_pp.amt; s.prev_pending_mode=_pp.mode; }
+    vehTripSync(billNo,s.out_date,s.customer+(s.address?' · '+s.address:''),vv);
     s.total=c.total; s.balance=c.bal; s.status=c.bal>0?'PENDING':'PAID';
     s.items=mapSaleItems(active,c.d.days);
     s.calc_type=active.some(function(r){return r.calcType==='monthly';})?'monthly':'daily';
@@ -8448,9 +8640,11 @@ window.edEditDispatch=function(billNo){
 function edEditHeader(kind,rec,rets){
   var no=kind==='dispatch'?rec.bill_no:rec.return_bill_no;
   var body='<div class="ed-warn">இந்த bill-க்கு Return இருக்கு — அதனால Customer name / phone / address மட்டும் மாத்தலாம். Qty / rate மாத்தணும்னா முதல்ல Return bill-ஐ edit / delete பண்ணுங்க.</div>'+
-    '<div class="ed-grid">'+field('Customer name','ed-name',rec.customer)+field('Phone','ed-phone',rec.phone)+(kind==='dispatch'?field('Address','ed-addr',rec.address||''):'')+'</div>';
+    '<div class="ed-grid">'+field('Customer name','ed-name',rec.customer)+field('Phone','ed-phone',rec.phone)+(kind==='dispatch'?field('Address','ed-addr',rec.address||''):'')+'</div>'+
+    (kind==='dispatch'?vehFields(rec.vrent,rec.vrent_contact,rec.vrent_show)+ppEdBill(rec,[no]):'');
   edOpen('✏ Edit Customer details — '+E(no),'',body,function(){
     if(!g('ed-name')||!g('ed-phone')) throw new Error('Name & phone போடுங்க');
+    if(kind==='dispatch'){ var vv=vehRead(); vehValid(vv); rec.vrent=vv.vr; rec.vrent_contact=vv.vc; rec.vrent_show=vv.vs; vehTripSync(no,rec.out_date,g('ed-name')+(g('ed-addr')?' · '+g('ed-addr'):''),vv); var _pp=ppRead('ed'); rec.prev_pending=_pp.amt; rec.prev_pending_mode=_pp.mode; }
     rec.customer=g('ed-name'); rec.phone=g('ed-phone'); if(kind==='dispatch') rec.address=g('ed-addr');
     if(kind==='dispatch'){ (rets||[]).forEach(function(r){ r.customer=rec.customer; r.phone=rec.phone; }); }
     payLogFor(no).forEach(function(p){ p.customer=rec.customer; p.phone=rec.phone; if(kind==='dispatch') p.address=rec.address; });
@@ -8499,15 +8693,16 @@ window.edEditReturn=function(rno){
     return {product:it.product,qty:oldQ,price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group_type||'MAIN',oldQty:oldQ,max:rec?rec.outstanding+oldQ:null};
   });
   var settled=sum(payLogFor(rno),function(p){return p.amount;});
-  var prev=num(r.prev_advance), vrIn=(r.vrent_show!==false)?n0(r.vrent):0, loading=n0(r.loading);
+  var prev=num(r.prev_advance), loading=n0(r.loading);
   var o={rates:true,hasMax:true};
   var body='<div class="ed-grid">'+field('Customer name','ed-name',r.customer)+field('Phone','ed-phone',r.phone)+field('Return date','ed-ret',toISODate(r.return_date),'date')+'</div>'+
     '<div class="ed-sec">📦 Returned items</div><div id="ed-items"></div>'+
     chargeFields({unloading:r.unloading,damage:r.damage,discount:r.discount,less:r.less,extra:r.extra,extra2:r.extra2})+
+    vehFields(r.vrent,r.vrent_contact,r.vrent_show)+ppEdBill(r,[rno,r.original_bill_no])+
     '<div class="ed-grid">'+field('Payment collected on return (additional pay)','ed-addp',r.additional_pay||'','number')+field('Notes','ed-notes',r.notes||'')+'</div>'+
     '<div class="ed-sum" id="ed-sum"></div>';
   var calc=function(){
-    collectRows(rows);
+    collectRows(rows); var vrIn=vehIn();
     var d=dur(orig.out_date,g('ed-ret')), total=0;
     rows.forEach(function(x){ if(x.qty>0&&d.ok) total+=calcItemAmount(x.qty,d.days,num(x.price),num(x.monthPrice),x.calcType==='monthly'?'monthly':'daily'); });
     var fb=round2(total+loading+gn('ed-unl')+gn('ed-dmg')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less')-prev-gn('ed-addp')-settled);
@@ -8517,7 +8712,7 @@ window.edEditReturn=function(rno){
     return {d:d,total:total,fb:fb};
   };
   edOpen('✏ Edit Return Bill — '+E(rno),'Original bill: '+E(r.original_bill_no)+' · Qty / rate / date / charges மாத்தலாம். Stock தானாக adjust ஆகும்.',body,function(){
-    var c=calc(); collectRows(rows);
+    var c=calc(); collectRows(rows); var vv=vehRead(); vehValid(vv);
     if(!g('ed-name')||!g('ed-phone')) throw new Error('Name & phone போடுங்க');
     if(!c.d.ok) throw new Error('Return date, OUT date ('+fdt(orig.out_date)+')-க்கு முன்னாடி இருக்க கூடாது');
     var active=rows.filter(function(x){ return x.qty>0; });
@@ -8531,6 +8726,9 @@ window.edEditReturn=function(rno){
     r.actual_days=c.d.days; r.actual_months=c.d.months; r.total_rental=c.total;
     r.unloading=gn('ed-unl'); r.damage=gn('ed-dmg'); r.discount=gn('ed-disc'); r.less=gn('ed-less'); r.extra=gn('ed-extra'); r.extra2=gn('ed-extra2');
     r.additional_pay=gn('ed-addp'); r.notes=g('ed-notes');
+    r.vrent=vv.vr; r.vrent_contact=vv.vc; r.vrent_show=vv.vs;
+    { var _pp=ppRead('ed'); r.prev_pending=_pp.amt; r.prev_pending_mode=_pp.mode; }
+    vehTripSync(rno,r.return_date,r.customer+' · Return of '+r.original_bill_no,vv);
     r.final_balance=c.fb; r.status=c.fb<=0?'FULLY PAID':'BALANCE DUE';
     r.items=mapSaleItems(active,c.d.days).map(function(i){ delete i.rent_type; return i; });
     r.calc_type=active.some(function(x){return x.calcType==='monthly';})?'monthly':'daily';
@@ -8628,22 +8826,22 @@ window.edEditSiteOut=function(siteId,idx){
   var no=site.site_no+'-OUT-'+(idx+1);
   var rows=(b.items||[]).map(function(it){ return {product:it.product,qty:num(it.qty),price:num(it.price),monthPrice:mpOf(it),calcType:ctOf(it),group:it.group||'MAIN',oldQty:num(it.qty)}; });
   var advRec=(site.payments||[]).find(function(p){ return b.advanceReceipt && p.receipt_no===b.advanceReceipt; });
-  var vrIn=(b.vrentShow!==false)?n0(b.vrent):0;
   var o={rates:true,add:true};
   var body=(site.status!=='OPEN'?'<div class="ed-warn">Site CLOSED — save பண்ணா Site மறுபடி OPEN ஆகும்.</div>':'')+
     '<div class="ed-grid">'+field('OUT date','ed-date',toISODate(b.date),'date')+field('Return date (expected)','ed-exp',toISODate(b.expected_return),'date')+field('Advance paid','ed-adv',(advRec?advRec.amount:(b.advance||''))||'','number')+'</div>'+
     '<div class="ed-sec">📦 Items</div><div id="ed-items"></div>'+
     chargeFields({loading:b.loading,discount:b.discount,less:b.less,extra:b.extra,extra2:b.extra2})+
+    vehFields(b.vrent,b.vrentContact,b.vrentShow)+ppEdSite(site,b)+
     '<div class="ed-sum" id="ed-sum"></div>';
   var calc=function(){
-    collectRows(rows);
+    collectRows(rows); var vrIn=vehIn();
     var dd=dur(g('ed-date'),g('ed-exp')), mul=dd.ok?dd.days:1, total=0;
     rows.forEach(function(r){ if(r.qty>0) total+=calcItemAmount(r.qty,mul,num(r.price),num(r.monthPrice),r.calcType==='monthly'?'monthly':'daily'); });
     var grand=Math.max(0,total+gn('ed-loading')+gn('ed-extra')+gn('ed-extra2')+vrIn-gn('ed-disc')-gn('ed-less'));
     $('ed-sum').innerHTML='<span>Bill duration: <b>'+(dd.ok?dd.days+' day(s)':'open')+'</b></span><span>Rental: <b>'+R(total)+'</b></span><span>Grand: <b>'+R(grand)+'</b></span><span>Balance (this bill): <b>'+R(Math.max(0,grand-gn('ed-adv')))+'</b></span>';
   };
-  edOpen('✏ Edit OUT batch — '+E(no)+' · '+E(site.customer),'Qty / rate / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.'+(vrIn>0?' · Vehicle rent '+R(vrIn)+' (மாற்ற முடியாது)':''),body,function(){
-    collectRows(rows);
+  edOpen('✏ Edit OUT batch — '+E(no)+' · '+E(site.customer),'Qty / rate / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.',body,function(){
+    collectRows(rows); var vv=vehRead(); vehValid(vv);
     var date=g('ed-date'); if(!date) throw new Error('OUT date போடுங்க');
     var exp=g('ed-exp'); if(exp && !dur(date,exp).ok) throw new Error('Return date, OUT date-க்கு முன்னாடி இருக்க கூடாது');
     var active=rows.filter(function(r){ return r.qty>0; });
@@ -8661,6 +8859,9 @@ window.edEditSiteOut=function(siteId,idx){
     newItems.forEach(function(it){ updateInv(it.product,it.group,'out_qty',it.qty); });
     b.date=date; b.expected_return=exp; b.items=newItems;
     b.loading=gn('ed-loading'); b.discount=gn('ed-disc'); b.less=gn('ed-less'); b.extra=gn('ed-extra'); b.extra2=gn('ed-extra2');
+    b.vrent=vv.vr; b.vrentContact=vv.vc; b.vrentShow=vv.vs;
+    { var _pp=ppRead('ed'); b.prevPending=_pp.amt; b.prevPendingMode=_pp.mode; }
+    vehTripSync(no,date,site.customer+' · '+site.site_no+(site.address?', '+site.address:''),vv);
     var adv=gn('ed-adv');
     if(adv>0){
       if(advRec){ advRec.amount=adv; advRec.date=date; }
@@ -8706,9 +8907,10 @@ window.edEditSiteIn=function(siteId,idx){
     '<div class="ed-grid">'+field('Return date','ed-date',toISODate(b.date),'date')+field('Payment collected','ed-pay',b.payment||'','number')+field('Notes','ed-note',b.note||'')+'</div>'+
     '<div class="ed-sec">📦 Returned items</div><div id="ed-items"></div>'+
     chargeFields({unloading:b.unloading,damage:b.damage,discount:b.discount,less:b.less,extra:b.extra,extra2:b.extra2})+
+    vehFields(b.vrent,b.vrentContact,b.vrentShow)+ppEdSite(site,b)+
     '<div class="ed-sum" id="ed-sum">Rent தானாக மறுபடி கணக்கிடப்படும் (OUT date → return date).</div>';
-  edOpen('✏ Edit Return (IN) batch — '+E(no)+' · '+E(site.customer),'Return qty / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.'+(n0(b.vrent)>0?' · Vehicle rent '+R(b.vrent)+' (மாற்ற முடியாது)':''),body,function(){
-    collectRows(rows);
+  edOpen('✏ Edit Return (IN) batch — '+E(no)+' · '+E(site.customer),'Return qty / date / charges மாத்தலாம். Stock & site balance தானாக adjust ஆகும்.',body,function(){
+    collectRows(rows); var vv=vehRead(); vehValid(vv);
     var date=g('ed-date'); if(!date) throw new Error('Return date போடுங்க');
     var active=rows.filter(function(r){ return r.qty>0; });
     if(!active.length) throw new Error('குறைந்தது ஒரு item-க்கு qty போடுங்க (batch-ஐ நீக்கணும்னா Delete பயன்படுத்துங்க)');
@@ -8723,6 +8925,9 @@ window.edEditSiteIn=function(siteId,idx){
     rows.forEach(function(r){ var dl=r.qty-r.oldQty; if(dl) updateInv(r.product,r.group,'in_qty',dl); });
     b.date=date; b.items=newItems; b.note=g('ed-note'); b.payment=gn('ed-pay'); b.damage=gn('ed-dmg'); b.unloading=gn('ed-unl');
     b.discount=gn('ed-disc'); b.less=gn('ed-less'); b.extra=gn('ed-extra'); b.extra2=gn('ed-extra2');
+    b.vrent=vv.vr; b.vrentContact=vv.vc; b.vrentShow=vv.vs;
+    { var _pp=ppRead('ed'); b.prevPending=_pp.amt; b.prevPendingMode=_pp.mode; }
+    vehTripSync(no,date,site.customer+' · '+site.site_no+(site.address?', '+site.address:''),vv);
     reopenIfClosed(site); recalcRent(site);
     auditLog('EDIT_SITE_IN',site.customer+' · '+no,no);
     done('✅ '+no+' updated');
@@ -8766,6 +8971,612 @@ document.addEventListener('click',function(e){
   });
 })();
 </script>
+<script type="text/vbcs-app">
+// ══════════════════════════════════════════════════════════════════════════
+// CUSTOMER-WISE STOCK — which customer / site has which material right now (Small Construction bills + Site Ledger)
+// Screen + Excel (3 sheets) + PDF (all customers or one customer). Works from the bills, so it always matches the Stock tab.
+// ══════════════════════════════════════════════════════════════════════════
+(function(){
+if(window.__csInit) return; window.__csInit=true;
+var $=function(i){ return document.getElementById(i); };
+function lc(s){ return String(s==null?'':s).trim().toLowerCase(); }
+function n0(v){ return Number(v)||0; }
+function dayDiff(a,b){ var x=isoDayNum(a), y=isoDayNum(b); return (isNaN(x)||isNaN(y))?'':Math.max(0,y-x); }
+
+function csBuild(){
+  var T=td(), map=new Map();
+  function cget(name,phone){
+    var k=phoneKey(phone)||('name:'+lc(name)), c=map.get(k);
+    if(!c){ c={key:k,name:name||'',phone:phone||'',lines:[]}; map.set(k,c); }
+    else { if(name) c.name=name; if(phone&&!c.phone) c.phone=phone; }
+    return c;
+  }
+  // 1) Small Construction dispatch bills — pieces not yet returned (pieces marked LOST are shown as Missing / Lost)
+  var X=ix();
+  (DB.sales||[]).forEach(function(s){
+    var o=billOutstanding(s.bill_no); if(!o) return;
+    var lost={}; (X.retsByOrig.get(s.bill_no)||[]).forEach(function(r){ var l=__lostFromNotes(r.notes); Object.keys(l).forEach(function(k){ lost[k]=(lost[k]||0)+l[k]; }); });
+    Object.keys(o.map).forEach(function(k){
+      var m=o.map[k], lq=Math.min(lost[k]||0,m.returned);
+      if(m.outstanding<=0&&lq<=0) return;
+      cget(s.customer,s.phone).lines.push({src:'Small Construction',ref:s.bill_no,place:s.address||'',product:m.name,group:m.group,
+        outDate:toISODate(s.out_date)||'',expDate:toISODate(s.in_date)||'',dispatched:m.dispatched,returned:m.returned-lq,pending:m.outstanding,missing:lq});
+    });
+  });
+  // 2) Site Ledger — pieces still at the site (+ missing / lost ones)
+  (DB.sites||[]).forEach(function(st){
+    var t; try{ t=computeSiteTotals(st); }catch(e){ return; }
+    Object.keys(t.byProduct).forEach(function(k){
+      var p=t.byProduct[k], miss=n0(p.missingQty)+n0(p.lostQty);
+      if(p.pending<=0&&miss<=0) return;
+      var lot=p.lots&&p.lots[0], od=lot?toISODate(lot.date):'';
+      if(!od){ var f=null; (st.outBatches||[]).forEach(function(b){ if((b.items||[]).some(function(i){ return lc(i.product)===k; }) && (!f||toISODate(b.date)<f)) f=toISODate(b.date); }); od=f||''; }
+      cget(st.customer,st.phone).lines.push({src:'Site Ledger',ref:st.site_no,place:st.address||'',product:p.name,group:p.group||'MAIN',
+        outDate:od,expDate:lot?(toISODate(lot.expRet)||''):'',dispatched:p.dispatched,returned:p.returned,pending:p.pending,missing:miss});
+    });
+  });
+  var custs=[]; map.forEach(function(c){
+    c.lines.forEach(function(l){ l.days=l.pending>0?dayDiff(l.outDate,T):''; l.overdue=!!(l.pending>0&&l.expDate&&l.expDate<T); });
+    c.lines.sort(function(a,b){ return (a.outDate||'').localeCompare(b.outDate||'')||a.ref.localeCompare(b.ref); });
+    custs.push(c);
+  });
+  return {custs:custs,today:T};
+}
+function csTotals(c){
+  var t={pending:0,missing:0,sc:0,site:0,overdue:0,refs:{},oldest:''};
+  c.lines.forEach(function(l){
+    t.pending+=l.pending; t.missing+=l.missing; if(l.src==='Site Ledger') t.site+=l.pending; else t.sc+=l.pending;
+    if(l.overdue) t.overdue+=l.pending; t.refs[l.ref]=1;
+    if(l.pending>0&&l.outDate&&(!t.oldest||l.outDate<t.oldest)) t.oldest=l.outDate;
+  });
+  t.refCount=Object.keys(t.refs).length; return t;
+}
+// product-wise totals over ALL customers + check against the Stock tab ("Out now")
+function csProducts(all){
+  var by={}, st={};
+  getStockData('MAIN').concat(getStockData('SUB')).forEach(function(r){ st[lc(r.name)]=r; });
+  all.forEach(function(c){ c.lines.forEach(function(l){ var k=lc(l.product), p=by[k]||(by[k]={name:l.product,pending:0,missing:0}); p.pending+=l.pending; p.missing+=l.missing; }); });
+  Object.keys(by).forEach(function(k){ var s=st[k], p=by[k]; p.total=s?s.total:''; p.stockOut=s?s.out:''; p.avail=s?s.available:''; p.sum=p.pending+p.missing; p.diff=s?(p.sum-s.out):''; });
+  return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+}
+function csFilters(){ return {q:lc(($('cs-q')||{}).value), src:($('cs-src')||{}).value||'', prod:($('cs-pr')||{}).value||'', od:!!($('cs-od')&&$('cs-od').checked), sort:($('cs-sort')||{}).value||'pending'}; }
+function csGet(keys){
+  var B=csBuild(), f=csFilters(), out=[];
+  B.custs.forEach(function(c){
+    if(keys&&keys.indexOf(c.key)<0) return;
+    if(!keys&&f.q&&lc(c.name).indexOf(f.q)<0&&String(c.phone||'').replace(/\D/g,'').indexOf(f.q.replace(/\D/g,'')||'\u0000')<0&&!c.lines.some(function(l){ return lc(l.ref).indexOf(f.q)>-1; })) return;
+    var lines=c.lines.filter(function(l){ return (!f.src||l.src===f.src)&&(!f.prod||lc(l.product)===f.prod)&&(!f.od||l.overdue); });
+    if(!lines.length) return;
+    out.push({key:c.key,name:c.name,phone:c.phone,lines:lines});
+  });
+  out.forEach(function(c){ c.t=csTotals(c); });
+  if(f.sort==='name') out.sort(function(a,b){ return lc(a.name).localeCompare(lc(b.name)); });
+  else if(f.sort==='oldest') out.sort(function(a,b){ return (a.t.oldest||'9999').localeCompare(b.t.oldest||'9999'); });
+  else out.sort(function(a,b){ return b.t.pending-a.t.pending; });
+  return {custs:out,all:B.custs,today:B.today,filters:f};
+}
+function fmtN(n){ return Number(n||0).toLocaleString('en-IN'); }
+
+// ── screen ──
+window.csRender=function(){
+  var box=$('cs-list'); if(!box) return;
+  var G=csGet(), all=G.all, f=G.filters;
+  // product drop-down (keeps the chosen value)
+  var sel=$('cs-pr'), cur=sel.value, names={}; all.forEach(function(c){ c.lines.forEach(function(l){ names[lc(l.product)]=l.product; }); });
+  var opts='<option value="">All products</option>'+Object.keys(names).sort().map(function(k){ return '<option value="'+esc(k)+'">'+esc(names[k])+'</option>'; }).join('');
+  if(sel.getAttribute('data-sig')!==opts){ sel.innerHTML=opts; sel.setAttribute('data-sig',opts); sel.value=cur; if(sel.value!==cur) sel.value=''; }
+  var tp=0,tm=0,to=0,tb=0; G.custs.forEach(function(c){ tp+=c.t.pending; tm+=c.t.missing; to+=c.t.overdue; tb+=c.t.refCount; });
+  $('cs-summary').innerHTML=
+    '<div class="stat-card"><div class="sv">'+G.custs.length+'</div><div class="sl">Customers with stock</div></div>'+
+    '<div class="stat-card"><div class="sv" style="color:var(--er)">'+fmtN(tp)+'</div><div class="sl">Pieces with customers</div></div>'+
+    '<div class="stat-card"><div class="sv" style="color:#d97706">'+fmtN(tm)+'</div><div class="sl">Missing / Lost pieces</div></div>'+
+    '<div class="stat-card"><div class="sv" style="color:#b91c1c">'+fmtN(to)+'</div><div class="sl">Overdue pieces</div></div>'+
+    '<div class="stat-card"><div class="sv">'+tb+'</div><div class="sl">Bills / Sites</div></div>';
+  if(!G.custs.length){ box.innerHTML='<div class="empty">No stock is out with any customer'+((f.q||f.src||f.prod||f.od)?' for this filter':'')+' ✅</div>'; }
+  else box.innerHTML=G.custs.map(function(c){
+    var t=c.t, rows=c.lines.map(function(l){
+      return '<tr'+(l.overdue?' style="background:#fef2f2"':'')+'><td>'+(l.src==='Site Ledger'?'🏗 Site':'📄 Bill')+'</td><td><b>'+esc(l.ref)+'</b>'+(l.place?'<br><span style="font-size:11px;color:var(--mu)">'+esc(String(l.place).slice(0,40))+'</span>':'')+'</td><td>'+esc(l.product)+'</td>'+
+        '<td>'+esc(l.outDate?fdt(l.outDate):'—')+'</td><td'+(l.overdue?' style="color:#b91c1c;font-weight:700"':'')+'>'+esc(l.expDate?fdt(l.expDate):'—')+(l.overdue?' ⚠':'')+'</td><td style="text-align:right">'+(l.days===''?'—':l.days)+'</td>'+
+        '<td style="text-align:right">'+fmtN(l.dispatched)+'</td><td style="text-align:right">'+fmtN(l.returned)+'</td><td style="text-align:right;font-weight:800;color:var(--er)">'+fmtN(l.pending)+'</td><td style="text-align:right;color:#d97706;font-weight:700">'+(l.missing?fmtN(l.missing):'—')+'</td></tr>';
+    }).join('');
+    return '<details class="cs-card" open style="border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;background:#fff"><summary style="cursor:pointer;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;list-style:none">'+
+      '<span style="font-weight:800;font-size:14px">👤 '+esc(c.name||'(no name)')+'</span><span style="color:var(--mu);font-size:12.5px">'+esc(c.phone||'')+'</span>'+
+      '<span style="font-size:12px;color:var(--mu)">'+t.refCount+' bill/site'+(t.refCount>1?'s':'')+'</span>'+
+      '<span style="margin-left:auto;font-weight:800;color:var(--er)">'+fmtN(t.pending)+' pcs</span>'+(t.missing?'<span style="font-weight:700;color:#d97706">'+fmtN(t.missing)+' missing/lost</span>':'')+(t.overdue?'<span style="font-weight:700;color:#b91c1c">⚠ '+fmtN(t.overdue)+' overdue</span>':'')+
+      '<button class="btn bo" style="padding:4px 10px;font-size:11px" data-k="'+esc(c.key)+'" onclick="event.preventDefault();event.stopPropagation();csPdf([this.dataset.k])">📄 PDF</button>'+
+      '<button class="btn bo" style="padding:4px 10px;font-size:11px" data-k="'+esc(c.key)+'" onclick="event.preventDefault();event.stopPropagation();csExcel([this.dataset.k])">📊 Excel</button></summary>'+
+      '<div style="overflow-x:auto;padding:0 14px 12px"><table><thead><tr><th>Type</th><th>Bill / Site</th><th>Product</th><th>Out date</th><th>Expected return</th><th style="text-align:right">Days out</th><th style="text-align:right">Dispatched</th><th style="text-align:right">Returned</th><th style="text-align:right">Pending</th><th style="text-align:right">Missing / Lost</th></tr></thead><tbody>'+rows+
+      '<tr style="background:#f1f5f9;font-weight:800"><td colspan="6" style="text-align:right">Total</td><td style="text-align:right">'+fmtN(c.lines.reduce(function(s,l){return s+l.dispatched;},0))+'</td><td style="text-align:right">'+fmtN(c.lines.reduce(function(s,l){return s+l.returned;},0))+'</td><td style="text-align:right;color:var(--er)">'+fmtN(t.pending)+'</td><td style="text-align:right;color:#d97706">'+(t.missing?fmtN(t.missing):'—')+'</td></tr></tbody></table></div></details>';
+  }).join('');
+  // product-wise totals (all customers) with a check against the Stock tab
+  var P=csProducts(all);
+  $('cs-prod').innerHTML=!P.length?'<div class="empty">Nothing is out.</div>':'<div style="overflow-x:auto"><table><thead><tr><th>Product</th><th style="text-align:right">Total stock</th><th style="text-align:right">With customers</th><th style="text-align:right">Missing / Lost</th><th style="text-align:right">Out now (Stock tab)</th><th style="text-align:right">Available</th><th>Check</th></tr></thead><tbody>'+
+    P.map(function(p){ return '<tr><td><b>'+esc(p.name)+'</b></td><td style="text-align:right">'+(p.total===''?'—':fmtN(p.total))+'</td><td style="text-align:right;font-weight:700;color:var(--er)">'+fmtN(p.pending)+'</td><td style="text-align:right">'+(p.missing?fmtN(p.missing):'—')+'</td><td style="text-align:right">'+(p.stockOut===''?'—':fmtN(p.stockOut))+'</td><td style="text-align:right">'+(p.avail===''?'—':fmtN(p.avail))+'</td><td>'+(p.diff===0?'<span style="color:var(--ok)">✔ matches</span>':'<span style="color:#b91c1c">⚠ differs by '+(p.diff===''?'?':p.diff)+'</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>';
+};
+window.csTopHolders=function(n){ var B=csBuild(); var a=B.custs.map(function(c){ c.t=csTotals(c); return c; }).filter(function(c){ return c.t.pending>0; }).sort(function(x,y){ return y.t.pending-x.t.pending; }); return a.slice(0,n); };
+window.csToggleAll=function(open){ document.querySelectorAll('#cs-list details').forEach(function(d){ d.open=open; }); };
+
+// ── Excel ──
+window.csExcel=function(keys){
+  try{
+    var G=csGet(keys&&keys.length?keys:null); if(!G.custs.length){ toast('⚠ Nothing to download'); return; }
+    var sum=[['#','Customer','Phone','Bills / Sites','Small Construction pcs','Site Ledger pcs','Pieces with customer','Missing / Lost','Overdue pcs','Oldest out date']];
+    G.custs.forEach(function(c,i){ var t=c.t; sum.push([i+1,c.name,c.phone,t.refCount,t.sc,t.site,t.pending,t.missing,t.overdue,t.oldest?fdt(t.oldest):'']); });
+    sum.push(['','TOTAL','',G.custs.reduce(function(s,c){return s+c.t.refCount;},0),G.custs.reduce(function(s,c){return s+c.t.sc;},0),G.custs.reduce(function(s,c){return s+c.t.site;},0),G.custs.reduce(function(s,c){return s+c.t.pending;},0),G.custs.reduce(function(s,c){return s+c.t.missing;},0),G.custs.reduce(function(s,c){return s+c.t.overdue;},0),'']);
+    var det=[['Customer','Phone','Type','Bill / Site No','Place / Address','Product','Out date','Expected return','Days out','Dispatched','Returned','Pending (with customer)','Missing / Lost','Overdue']];
+    G.custs.forEach(function(c){ c.lines.forEach(function(l){ det.push([c.name,c.phone,l.src,l.ref,l.place,l.product,l.outDate?fdt(l.outDate):'',l.expDate?fdt(l.expDate):'',l.days===''?'':l.days,l.dispatched,l.returned,l.pending,l.missing,l.overdue?'YES':'']); }); });
+    var prod=[['Product','Total stock','With customers','Missing / Lost','Out now (Stock tab)','Available','Check']];
+    csProducts(G.all).forEach(function(p){ prod.push([p.name,p.total,p.pending,p.missing,p.stockOut,p.avail,p.diff===0?'matches':'differs by '+p.diff]); });
+    var wb=XLSX.utils.book_new();
+    function add(name,rows,w){ var ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=w.map(function(x){ return {wch:x}; }); XLSX.utils.book_append_sheet(wb,ws,name); }
+    add('Customer Summary',sum,[5,30,14,12,20,16,20,14,12,16]);
+    add('Detail',det,[28,14,19,16,28,26,12,16,9,11,10,20,14,9]);
+    add('By Product (all)',prod,[28,12,15,14,20,11,18]);
+    var one=keys&&keys.length===1?('_'+String(G.custs[0].name||'Customer').replace(/[^A-Za-z0-9]+/g,'_').slice(0,24)):'';
+    XLSX.writeFile(wb,'Customer_Stock'+one+'_'+G.today+'.xlsx'); toast('✅ Excel downloaded');
+  }catch(e){ console.error(e); toast('⚠ Excel download failed: '+e.message,6000); }
+};
+
+// ── PDF (A4 landscape) ──
+window.csPdf=function(keys){
+  var G=csGet(keys&&keys.length?keys:null); if(!G.custs.length){ toast('⚠ Nothing to download'); return; }
+  toast('⟳ Preparing PDF…',3000);
+  Promise.resolve(typeof ensureTamilCanvasFont==='function'?ensureTamilCanvasFont():true).then(function(){
+    try{
+      var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
+      var W=297,H=210,M=10,y=0;
+      function T(str,x,yy,o){ o=o||{}; str=String(str==null?'':str);
+        if(/[^\x00-\x7F]/.test(str)&&typeof pdfT==='function'){ pdfT(doc,str,x,yy,(o.size||8)*1.3333,o.bold?'700':'400',o.hex||'#1e293b',o.align); }
+        else { doc.setFont('helvetica',o.bold?'bold':'normal'); doc.setFontSize(o.size||8); var c=o.rgb||[30,41,59]; doc.setTextColor(c[0],c[1],c[2]); doc.text(str,x,yy,{align:o.align||'left'}); } }
+      function cut(s,n){ s=String(s==null?'':s); return s.length>n?s.slice(0,n-1)+'…':s; }
+      var cols=[['Type',22,'l'],['Bill / Site',28,'l'],['Product',60,'l'],['Out date',22,'l'],['Expected',22,'l'],['Days',13,'r'],['Dispatched',24,'r'],['Returned',22,'r'],['Pending',22,'r'],['Missing/Lost',22,'r']];
+      var cw=cols.reduce(function(s,c){return s+c[1];},0), sc=(W-2*M)/cw; cols=cols.map(function(c){ return [c[0],c[1]*sc,c[2]]; });
+      function header(first){
+        doc.setFillColor(15,23,42); doc.rect(0,0,W,16,'F');
+        T('GARUDA CONSTRUCTION SERVICE',M,8,{size:13,bold:true,rgb:[255,255,255]}); T('Customer-wise Stock Report',M,13,{size:9,rgb:[203,213,225]});
+        T('Date: '+fdt(G.today),W-M,8,{size:9,rgb:[255,255,255],align:'right'});
+        var fl=[]; if(G.filters.src) fl.push(G.filters.src); if(G.filters.prod) fl.push('Product: '+G.filters.prod); if(G.filters.od) fl.push('Overdue only'); if(G.filters.q&&!keys) fl.push('Search: '+G.filters.q);
+        T(fl.length?fl.join(' · '):(keys?'Selected customer':'All customers'),W-M,13,{size:8,rgb:[203,213,225],align:'right'});
+        y=22;
+      }
+      function tableHead(){
+        doc.setFillColor(226,232,240); doc.rect(M,y-4,W-2*M,6,'F'); var x=M;
+        cols.forEach(function(c){ T(c[0],c[2]==='r'?x+c[1]-1.5:x+1.5,y,{size:7.5,bold:true,align:c[2]==='r'?'right':'left'}); x+=c[1]; }); y+=5.2;
+      }
+      header(true);
+      var tp=0,tm=0; G.custs.forEach(function(c){ tp+=c.t.pending; tm+=c.t.missing; });
+      T(G.custs.length+' customer(s)  ·  '+fmtN(tp)+' pieces with customers'+(tm?'  ·  '+fmtN(tm)+' missing / lost':''),M,y,{size:9,bold:true}); y+=7;
+      G.custs.forEach(function(c){
+        if(y>H-38){ doc.addPage(); header(); }
+        doc.setFillColor(239,246,255); doc.setDrawColor(191,219,254); doc.rect(M,y-4.5,W-2*M,7,'FD');
+        T(cut(c.name||'(no name)',46),M+2,y,{size:10,bold:true}); T(c.phone||'',M+88,y,{size:9,rgb:[71,85,105]});
+        T(c.t.refCount+' bill/site'+(c.t.refCount>1?'s':'')+'  |  Pending '+fmtN(c.t.pending)+' pcs'+(c.t.missing?'  |  Missing/Lost '+fmtN(c.t.missing):'')+(c.t.overdue?'  |  Overdue '+fmtN(c.t.overdue):''),W-M-2,y,{size:9,bold:true,rgb:[185,28,28],align:'right'});
+        y+=6.5; tableHead();
+        c.lines.forEach(function(l){
+          if(y>H-14){ doc.addPage(); header(); T((c.name||'')+' (continued)',M,y,{size:9,bold:true}); y+=6; tableHead(); }
+          var v=[l.src==='Site Ledger'?'Site':'Bill',cut(l.ref,16),cut(l.product,36),l.outDate?fdt(l.outDate):'-',l.expDate?fdt(l.expDate):'-',l.days===''?'-':String(l.days),fmtN(l.dispatched),fmtN(l.returned),fmtN(l.pending),l.missing?fmtN(l.missing):'-'];
+          if(l.overdue){ doc.setFillColor(254,242,242); doc.rect(M,y-3.6,W-2*M,5,'F'); }
+          var x=M; cols.forEach(function(cc,i){ T(v[i],cc[2]==='r'?x+cc[1]-1.5:x+1.5,y,{size:8,bold:i===8,rgb:i===8?[185,28,28]:(i===9&&l.missing?[217,119,6]:[30,41,59]),align:cc[2]==='r'?'right':'left'}); x+=cc[1]; });
+          doc.setDrawColor(226,232,240); doc.line(M,y+1.4,W-M,y+1.4); y+=5;
+        });
+        var dsp=c.lines.reduce(function(s,l){return s+l.dispatched;},0), ret=c.lines.reduce(function(s,l){return s+l.returned;},0);
+        var xs=M+cols.slice(0,6).reduce(function(s,k){return s+k[1];},0);
+        T('Total',xs-1.5,y,{size:8,bold:true,align:'right'});
+        var x2=xs; [dsp,ret,c.t.pending,c.t.missing].forEach(function(val,i){ var w=cols[6+i][1]; T(val?fmtN(val):'-',x2+w-1.5,y,{size:8,bold:true,align:'right'}); x2+=w; });
+        y+=9;
+      });
+      // product-wise totals (all customers) + check
+      if(!keys){
+        var P=csProducts(G.all);
+        if(P.length){
+          if(y>H-50){ doc.addPage(); header(); }
+          T('Product-wise total (all customers)',M,y,{size:10,bold:true}); y+=6;
+          var pc=[['Product',80,'l'],['Total stock',32,'r'],['With customers',36,'r'],['Missing / Lost',34,'r'],['Out now (Stock tab)',40,'r'],['Available',28,'r'],['Check',27,'l']]; var ps=(W-2*M)/pc.reduce(function(s,c){return s+c[1];},0); pc=pc.map(function(c){ return [c[0],c[1]*ps,c[2]]; });
+          function ph(){ doc.setFillColor(226,232,240); doc.rect(M,y-4,W-2*M,6,'F'); var x=M; pc.forEach(function(c){ T(c[0],c[2]==='r'?x+c[1]-1.5:x+1.5,y,{size:7.5,bold:true,align:c[2]==='r'?'right':'left'}); x+=c[1]; }); y+=5.2; }
+          ph();
+          P.forEach(function(p){
+            if(y>H-14){ doc.addPage(); header(); ph(); }
+            var v=[cut(p.name,44),p.total===''?'-':fmtN(p.total),fmtN(p.pending),p.missing?fmtN(p.missing):'-',p.stockOut===''?'-':fmtN(p.stockOut),p.avail===''?'-':fmtN(p.avail),p.diff===0?'OK':('Differs '+p.diff)];
+            var x=M; pc.forEach(function(c,i){ T(v[i],c[2]==='r'?x+c[1]-1.5:x+1.5,y,{size:8,bold:i===2,rgb:(i===6&&p.diff!==0)?[185,28,28]:[30,41,59],align:c[2]==='r'?'right':'left'}); x+=c[1]; });
+            doc.setDrawColor(226,232,240); doc.line(M,y+1.4,W-M,y+1.4); y+=5;
+          });
+        }
+      }
+      var n=doc.getNumberOfPages(); for(var i=1;i<=n;i++){ doc.setPage(i); T('Page '+i+' of '+n,W-M,H-5,{size:7.5,rgb:[120,120,120],align:'right'}); T('Garuda Construction Service — generated '+fdt(G.today),M,H-5,{size:7.5,rgb:[120,120,120]}); }
+      var one=keys&&keys.length===1?('_'+String(G.custs[0].name||'Customer').replace(/[^A-Za-z0-9]+/g,'_').slice(0,24)):'';
+      if(__pdfOut(doc,'Customer_Stock'+one+'_'+G.today+'.pdf')) toast('✅ PDF downloaded');
+    }catch(e){ console.error(e); toast('⚠ PDF download failed: '+e.message,6000); }
+  });
+};
+})();
+</script>
+
+<script type="text/vbcs-app">
+// ══════════════════════════════════════════════════════════════════════════
+// PRICE LIST (💲 Price tab) + BEAM SHEET PER-FOOT PRICING
+//  • One table with every stock item: save its price once, bills use it automatically (switch ON) or you type it (switch OFF).
+//  • Beam sheet items (name has "2 feet" / "3 feed" …) are priced per FOOT: total feet = Σ qty × feet; the bill shows ONE line
+//    "Beam Sheet — மொத்தம் N அடி" with the total amount.
+// ══════════════════════════════════════════════════════════════════════════
+(function(){
+if(window.__pxInit) return; window.__pxInit=true;
+var $=function(i){ return document.getElementById(i); };
+function lc(s){ return String(s==null?'':s).trim().toLowerCase(); }
+function r2(v){ return Math.round((Number(v)||0)*100)/100; }
+function nn(v){ return Number(v)||0; }
+function trimN(v){ v=r2(v); return String(v%1===0?v:v.toFixed(2).replace(/0+$/,'').replace(/\.$/,'')); }
+
+window.pxDB=function(){ if(!DB.prices||typeof DB.prices!=='object') DB.prices={on:true,items:{}}; if(!DB.prices.items) DB.prices.items={}; if(DB.prices.on===undefined) DB.prices.on=true; return DB.prices; };
+window.pxEntry=function(name){ var P=DB.prices; return (P&&P.items&&P.items[lc(name)])||null; };
+// feet in one piece (0 = not a per-foot item)
+window.beamFeet=function(name){
+  var e=pxEntry(name); if(e&&nn(e.feet)>0) return nn(e.feet);
+  if(!/beam/i.test(String(name||''))) return 0;
+  var m=String(name).match(/(\d+(?:\.\d+)?)\s*(?:feet|feed|foot|ft|அடி)/i); return m?parseFloat(m[1]):0;
+};
+function beamBase(name){ var b=String(name||'').replace(/[\s\-–(]*\d+(?:\.\d+)?\s*(?:feet|feed|foot|ft|அடி)\b\)?/i,'').replace(/[\s\-–(]+$/,'').trim(); return b||'Beam Sheet'; }
+// saved price of an item → per-piece numbers the bill forms understand
+window.pxPiece=function(name){
+  var e=pxEntry(name); if(!e) return null; var ft=beamFeet(name), d=nn(e.d), m=nn(e.m);
+  if(!(d>0)&&!(m>0)) return null;
+  if(ft>0){ var pd=r2(d*ft), pm=m>0?r2(m*ft):(pd>0?r2(pd*30):0); return {daily:pd,monthly:pm,type:e.t==='monthly'?'monthly':'daily',perFoot:d,feet:ft}; }
+  return {daily:d,monthly:m>0?m:(d>0?d*30:0),type:e.t==='monthly'?'monthly':'daily',perFoot:0,feet:0};
+};
+window.pxOn=function(){ return !!pxDB().on; };
+
+// ── price tab ──
+function stockRows(){ return DB.invMain.map(function(r){ return {r:r,g:'MAIN'}; }).concat(DB.invSub.map(function(r){ return {r:r,g:'SUB'}; })); }
+window.pxRender=function(){
+  var box=$('px-body'); if(!box) return; pxDB();
+  $('px-on').checked=pxOn();
+  $('px-state').innerHTML=pxOn()?'<span style="color:var(--ok);font-weight:800">● ON</span> — bill-la indha saved price thaanaaga varum (bill-la maatha mudiyaadhu)':'<span style="color:#b45309;font-weight:800">● OFF</span> — bill-la neengale price type pannalaam';
+  var q=lc(($('px-q')||{}).value), rows=stockRows().filter(function(x){ return !q||lc(x.r.product).indexOf(q)>-1; });
+  var h='<div style="overflow-x:auto"><table><thead><tr><th>Product</th><th>Group</th><th title="Oru piece-la ethanai adi (feet). Beam sheet-ku mattum">Feet / piece</th><th>₹ / day <small>(per pc or per foot)</small></th><th>₹ / month</th><th>Default bill type</th><th>Piece price</th><th></th></tr></thead><tbody>';
+  rows.forEach(function(x){
+    var name=x.r.product, id=x.g+'-'+x.r.id, e=pxEntry(name)||{}, ft=beamFeet(name), pp=pxPiece(name);
+    h+='<tr><td><b>'+esc(name)+'</b></td><td>'+(x.g==='SUB'?'Sub':'Main')+'</td>'+
+      '<td><input id="px-f-'+id+'" type="number" min="0" step="any" value="'+(ft>0?ft:'')+'" placeholder="—" style="width:78px" oninput="pxLive(\''+id+'\')"></td>'+
+      '<td><input id="px-d-'+id+'" type="number" min="0" step="any" value="'+(e.d||'')+'" style="width:96px" oninput="pxLive(\''+id+'\')"> <span id="px-u1-'+id+'" style="font-size:11px;color:var(--mu)">'+(ft>0?'/ft/day':'/pc/day')+'</span></td>'+
+      '<td><input id="px-m-'+id+'" type="number" min="0" step="any" value="'+(e.m||'')+'" placeholder="auto ×30" style="width:96px" oninput="pxLive(\''+id+'\')"> <span id="px-u2-'+id+'" style="font-size:11px;color:var(--mu)">'+(ft>0?'/ft/mo':'/pc/mo')+'</span></td>'+
+      '<td><select id="px-t-'+id+'" style="width:auto"><option value="daily"'+(e.t!=='monthly'?' selected':'')+'>Daily</option><option value="monthly"'+(e.t==='monthly'?' selected':'')+'>1 Month + Extra Days</option></select></td>'+
+      '<td id="px-p-'+id+'" style="font-weight:700;color:var(--pri-d)">'+(pp?('₹'+trimN(pp.daily)+'/day'+(pp.monthly?' · ₹'+trimN(pp.monthly)+'/mo':'')):'<span style="color:var(--mu);font-weight:500">not set</span>')+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn bo" style="padding:4px 9px;font-size:11px" onclick="pxSaveOne(\''+id+'\')">💾 Save</button> <button class="btn br" style="padding:4px 9px;font-size:11px" onclick="pxClearOne(\''+id+'\')" title="Saved price-ai neekku">✖</button></td></tr>';
+  });
+  box.innerHTML=h+'</tbody></table></div>'+(rows.length?'':'<div class="empty">No stock items match</div>');
+  var set=stockRows().filter(function(x){ return pxPiece(x.r.product); }).length;
+  $('px-count').textContent=set+' of '+stockRows().length+' items have a saved price';
+};
+window.pxLive=function(id){
+  var ftv=nn(($('px-f-'+id)||{}).value), d=nn(($('px-d-'+id)||{}).value), m=nn(($('px-m-'+id)||{}).value), c=$('px-p-'+id); if(!c) return;
+  $('px-u1-'+id).textContent=ftv>0?'/ft/day':'/pc/day'; $('px-u2-'+id).textContent=ftv>0?'/ft/mo':'/pc/mo';
+  if(!(d>0)&&!(m>0)){ c.innerHTML='<span style="color:var(--mu);font-weight:500">not set</span>'; return; }
+  var pd=ftv>0?r2(d*ftv):d, pm=m>0?(ftv>0?r2(m*ftv):m):(pd>0?r2(pd*30):0);
+  c.textContent='₹'+trimN(pd)+'/day'+(pm?' · ₹'+trimN(pm)+'/mo':'');
+};
+function readRow(id){ return {feet:nn(($('px-f-'+id)||{}).value), d:nn(($('px-d-'+id)||{}).value), m:nn(($('px-m-'+id)||{}).value), t:($('px-t-'+id)||{}).value==='monthly'?'monthly':'daily'}; }
+function putRow(name,v){
+  var P=pxDB(), k=lc(name);
+  if(!(v.d>0)&&!(v.m>0)){ delete P.items[k]; return false; }
+  var auto=0; var mm=String(name).match(/(\d+(?:\.\d+)?)\s*(?:feet|feed|foot|ft|அடி)/i); if(/beam/i.test(name)&&mm) auto=parseFloat(mm[1]);
+  var o={d:v.d,m:v.m||0,t:v.t}; if(v.feet>0&&v.feet!==auto) o.feet=v.feet; else if(v.feet>0) o.feet=v.feet;
+  P.items[k]=o; return true;
+}
+function findName(id){ var x=stockRows().find(function(y){ return (y.g+'-'+y.r.id)===id; }); return x?x.r.product:null; }
+window.pxSaveOne=function(id){ var n=findName(id); if(!n) return; var v=readRow(id); putRow(n,v); saveDB(); toast(pxEntry(n)?('✅ '+n+' price saved'):'✔ Price removed'); pxRefreshForms(); pxRender(); };
+window.pxClearOne=function(id){ var n=findName(id); if(!n) return; delete pxDB().items[lc(n)]; saveDB(); toast('✔ Price removed — '+n); pxRefreshForms(); pxRender(); };
+window.pxSaveAll=function(){
+  var n=0, bad=[];
+  stockRows().forEach(function(x){ var id=x.g+'-'+x.r.id; if(!$('px-d-'+id)) return; var v=readRow(id);
+    if(v.d<0||v.m<0){ bad.push(x.r.product); return; }
+    if(putRow(x.r.product,v)) n++; });
+  saveDB(); toast('✅ '+n+' item price(s) saved'+(bad.length?' — check: '+bad.join(', '):''),5000); pxRefreshForms(); pxRender();
+};
+window.pxToggle=function(on){ pxDB().on=!!on; saveDB(); toast(on?'✔ Saved prices ON — bill-la fixed price varum':'✔ Saved prices OFF — bill-la manual price type pannalaam',5000); pxRefreshForms(); pxRender(); };
+window.pxBulk=function(){
+  var v=nn(($('px-bulk')||{}).value); if(!(v>0)){ toast('⚠ Bulk price (₹/day) போடுங்க'); return; }
+  var only=$('px-bulk-empty').checked, n=0;
+  stockRows().forEach(function(x){ var id=x.g+'-'+x.r.id, d=$('px-d-'+id); if(!d) return; if(only&&nn(d.value)>0) return; d.value=v; pxLive(id); n++; });
+  toast('✔ '+n+' row(s) filled — 💾 Save All press pannunga'); 
+};
+
+// ── apply to the bill forms (Small Construction dispatch + Site OUT) ──
+var FORMS={ d:{rate:'dp-',ct:'dct-',month:'dmp-',qty:'dq-',recalc:function(){ try{ calcD(); }catch(e){} }},
+            so:{rate:'so-rate-',ct:'so-ct-',month:'so-mrate-',qty:'so-qty-',recalc:function(){ try{ previewSiteOut(); }catch(e){} }} };
+function lock(e,on){ if(!e) return; if(e.tagName==='SELECT'){ e.disabled=on; } else { e.readOnly=on; } e.style.background=on?'#eef2f7':''; e.style.cursor=on?'not-allowed':''; e.title=on?'Price tab-la fixed price — maatha Price tab-la switch OFF pannunga':''; }
+function applyForm(kind){
+  var F=FORMS[kind], on=pxOn();
+  (ALL_PRODUCTS||[]).forEach(function(p){
+    var dp=$(F.rate+p.id), mp=$(F.month+p.id), ct=$(F.ct+p.id); if(!dp) return;
+    var ft=beamFeet(p.name), pp=on?pxPiece(p.name):null, fp=$(kind+'fp-'+p.id);
+    if(ft>0){
+      if(!fp){
+        fp=document.createElement('input'); fp.type='number'; fp.min='0'; fp.step='any'; fp.id=kind+'fp-'+p.id; fp.placeholder='₹/அடி/நாள்'; fp.style.cssText='width:96px;display:block;margin-bottom:3px;text-align:center'; fp.title=ft+' அடி / piece — ஒரு அடிக்கு (per foot) rate போடுங்க';
+        fp.addEventListener('input',function(){ var v=nn(fp.value); dp.value=v>0?r2(v*ft):''; if(mp){ mp.value=v>0?r2(v*ft*30):''; } F.recalc(); });
+        dp.parentNode.insertBefore(fp,dp);
+        var lab=document.createElement('div'); lab.style.cssText='font-size:10px;color:var(--mu);margin-top:2px'; lab.id=kind+'fl-'+p.id; dp.parentNode.appendChild(lab);
+      }
+      dp.readOnly=true; dp.style.background='#f1f5f9'; dp.title='Piece rate = '+ft+' அடி × per-foot rate (தானா)';
+      var lb=$(kind+'fl-'+p.id); if(lb) lb.textContent='= ₹/pc · '+ft+' அடி';
+      if(!fp.__init){ fp.__init=true; if(nn(dp.value)>0) fp.value=r2(nn(dp.value)/ft); }
+    }
+    if(pp){
+      if(ft>0){ fp.value=pp.perFoot; }
+      dp.value=pp.daily; if(mp) mp.value=pp.monthly||''; if(ct) ct.value=pp.type;
+      if(ft>0) lock(fp,true); lock(dp,true); lock(mp,true); lock(ct,true);
+    } else {
+      if(ft>0){ lock(fp,false); dp.readOnly=true; dp.style.background='#f1f5f9'; } else lock(dp,false);
+      lock(mp,false); lock(ct,false);
+    }
+  });
+  F.recalc();
+}
+function wrap(fname,kind){ var o=window[fname]; if(typeof o!=='function'||o.__px) return; var w=function(){ var r=o.apply(this,arguments); try{ applyForm(kind); }catch(e){ console.error('price apply failed',e); } return r; }; w.__px=true; window[fname]=w; }
+wrap('buildD','d'); wrap('buildSiteOutTable','so');
+window.pxRefreshForms=function(){ try{ if(typeof buildD==='function') buildD(); }catch(e){} try{ if($('so-tbody')&&typeof buildSiteOutTable==='function') buildSiteOutTable(); }catch(e){} };
+
+// ── bill lines: group every beam-sheet line into one "total feet" line ──
+function fmtFt(v){ return trimN(v); }
+window.vbBeamGroup=function(o){
+  try{
+    if(!o||!o.items||!o.items.length) return o;
+    var groups={}, out=[], any=false;
+    o.items.forEach(function(it){
+      var ft=beamFeet(it.name), price=nn(it.price), q=nn(it.qty);
+      if(!(ft>0)||!(price>0)||!(q>0)){ out.push(it); return; }
+      var per=String(it.detail||'').split(/\s*\u00B7\s*/).filter(function(x){ return x&&x.indexOf('₹')<0; }), rpf=r2(price/ft), base=beamBase(it.name);
+      var key=lc(base)+'|'+per.join('|')+'|'+(it.ct||'');
+      var g=groups[key];
+      if(!g){ g=groups[key]={base:base,per:per.join('  ·  '),ct:it.ct,qty:0,feet:0,amt:0,by:{},rates:{},row:{}}; g.row={qty:'',name:'',detail:'',amt:''}; out.push(g.row); }
+      var mpf=nn(it.mp)>0?r2(nn(it.mp)/ft):0, bk=ft+'@'+rpf+'@'+mpf;
+      g.qty+=q; g.feet+=ft*q; g.amt+=nn(it.amt); g.by[bk]=g.by[bk]||{ft:ft,rpf:rpf,mpf:mpf,q:0}; g.by[bk].q+=q; g.rates[(it.ct==='monthly')?mpf:rpf]=1; any=true;
+    });
+    if(!any) return o;
+    Object.keys(groups).forEach(function(k){
+      var g=groups[k], r=g.row, many=Object.keys(g.rates).length>1, mon=(g.ct==='monthly');
+      var br=Object.keys(g.by).map(function(x){ return g.by[x]; }).sort(function(a,b){ return a.ft-b.ft||a.rpf-b.rpf; }).map(function(b){ return fmtFt(b.ft)+'அடி×'+b.q+(many?(' @₹'+trimN(mon?b.mpf:b.rpf)):''); }).join(' + ');
+      r.qty=g.qty; r.name=g.base+' — மொத்தம் '+fmtFt(g.feet)+' அடி';
+      var one=Object.keys(g.rates)[0], rate=many?'':(mon?(' · 1 Month ₹'+trimN(one)+'/அடி'):(' · ₹'+trimN(one)+'/அடி/நாள்'));
+      r.detail=br+(g.per?' · '+g.per.replace(/\s+·\s+/g,' · '):'')+rate;
+      r.amt=r2(g.amt);
+    });
+    var c=Object.assign({},o); c.items=out; return c;
+  }catch(e){ console.error('beam group failed',e); return o; }
+};
+['vbBillOpts','vbSiteOptsFull'].forEach(function(n){ var o=window[n]; if(typeof o!=='function'||o.__bm) return; var w=function(){ return vbBeamGroup(o.apply(this,arguments)); }; w.__bm=true; window[n]=w; });
+})();
+</script>
+
+<script type="text/vbcs-app">
+// ══════════════════════════════════════════════════════════════════════════
+// PREVIOUS PENDING on every bill (💰 பழைய நிலுவை)
+// Option in every bill form / edit screen / site full bill: add the customer's old balance to the bill. AUTO = everything else that
+// customer still owes (other bills, site balances, old dues) · MANUAL = type any amount. The bill shows
+// "முந்தைய நிலுவை" and "மொத்தம் செலுத்த வேண்டியது" (this bill's balance + previous pending). Accounts are not changed.
+// ══════════════════════════════════════════════════════════════════════════
+(function(){
+if(window.__ppInit) return; window.__ppInit=true;
+var $=function(i){ return document.getElementById(i); };
+function lc(s){ return String(s==null?'':s).trim().toLowerCase(); }
+function r2(v){ return Math.round((Number(v)||0)*100)/100; }
+function money(v){ return '₹'+Number(Math.round(v)||0).toLocaleString('en-IN'); }
+VB_L.prevPend='\u0BAE\u0BC1\u0BA8\u0BCD\u0BA4\u0BC8\u0BAF \u0BA8\u0BBF\u0BB2\u0BC1\u0BB5\u0BC8 :';          // முந்தைய நிலுவை :
+VB_L.payAll='\u0BAE\u0BCA\u0BA4\u0BCD\u0BA4\u0BAE\u0BCD \u0B9A\u0BC6\u0BB2\u0BC1\u0BA4\u0BCD\u0BA4 \u0BB5\u0BC7\u0BA3\u0BCD\u0B9F\u0BBF\u0BAF\u0BA4\u0BC1 :'; // மொத்தம் செலுத்த வேண்டியது :
+
+var CTX={};
+CTX.d=function(){ return {phone:val('d-phone'),name:val('d-name'),excl:[]}; };
+CTX.r=function(){ return {phone:val('r-phone'),name:val('r-name'),excl:[val('r-bill')]}; };
+CTX.so=CTX.si=function(){ var s=(typeof findSiteById==='function'&&findSiteById(curSiteId))||{}; return {phone:s.phone,name:s.customer,excl:[s.site_no],siteId:s.id}; };
+window.ppCtx=CTX;
+
+// everything else this customer owes
+window.ppAuto=function(ctx){
+  var res={amt:0,lines:[]}; if(!ctx||(!ctx.phone&&!ctx.name)) return res;
+  var ci=buildCustIndex(), c=ci.map.get(phoneKey(ctx.phone)||('name:'+lc(ctx.name))); if(!c) return res;
+  var ex=(ctx.excl||[]).filter(Boolean);
+  c.bills.forEach(function(b){
+    if(!(Number(b.balance)>0)) return; if(ex.indexOf(b.no)>-1) return; if(ctx.siteId&&b.siteId===ctx.siteId) return;
+    var lab=b.type==='OLDDUE'?'Old due':b.type==='SITE'?'Site':b.type==='RETURN'?'Return':'Bill';
+    res.lines.push(lab+' '+b.no+' '+money(b.balance)); res.amt+=Number(b.balance);
+  });
+  res.amt=Math.round(res.amt); return res;
+};
+window.ppHTML=function(p,on,mode,amt,fn){
+  var chg=fn||("ppChange('"+p+"')"), typ=fn?'onchange="'+fn+'"':'oninput="ppChange(\''+p+'\',1)"';
+  return '<div id="'+p+'-pp" style="background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;padding:10px 12px;margin:10px 0">'+
+    '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;color:#92400e"><input type="checkbox" id="'+p+'-pp-on" '+(on?'checked':'')+' onchange="'+chg+'" style="width:18px;height:18px;margin:0"> 💰 பழைய நிலுவை — Previous Pending-ai bill-oda serthu kaattu</label>'+
+    '<div id="'+p+'-pp-body" style="display:'+(on?'block':'none')+';margin-top:8px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+    '<select id="'+p+'-pp-mode" onchange="'+chg+'" style="width:auto;padding:7px 8px"><option value="auto"'+(mode!=='manual'?' selected':'')+'>Auto — customer-oda ella pending</option><option value="manual"'+(mode==='manual'?' selected':'')+'>Manual — naan type panren</option></select>'+
+    '<input id="'+p+'-pp-amt" type="number" min="0" placeholder="₹ amount" value="'+(amt>0?amt:'')+'" '+typ+' style="width:130px;padding:7px 9px;text-align:right">'+
+    '<button type="button" class="btn bo" style="padding:6px 10px;font-size:12px" onclick="'+chg+'">⟳ Refresh</button></div>'+
+    '<div id="'+p+'-pp-info" style="font-size:11.5px;color:#78350f;margin-top:6px"></div></div></div>';
+};
+window.ppChange=function(p,typing){
+  var on=$(p+'-pp-on'); if(!on) return; var body=$(p+'-pp-body'); body.style.display=on.checked?'block':'none'; if(!on.checked) return;
+  var mode=$(p+'-pp-mode').value, amt=$(p+'-pp-amt'), info=$(p+'-pp-info'), a=ppAuto(CTX[p]&&CTX[p]());
+  if(mode==='auto'){
+    amt.readOnly=true; amt.style.background='#f1f5f9'; if(!typing) amt.value=a.amt>0?a.amt:'';
+    info.textContent=a.amt>0?('Auto: '+money(a.amt)+' — '+a.lines.join(' · ')):'Indha customer-ku vera pending illa (₹0). Venumna Manual-la type pannunga.';
+  } else {
+    amt.readOnly=false; amt.style.background=''; info.textContent=a.amt>0?('Reference — customer-oda mathha pending: '+money(a.amt)+' ('+a.lines.join(' · ')+')'):'Manual amount — bill-la "முந்தைய நிலுவை" nu varum.';
+  }
+};
+window.ppRead=function(p){
+  var on=$(p+'-pp-on'); if(!on||!on.checked) return {amt:0,mode:''};
+  var mode=$(p+'-pp-mode').value;
+  var amt=mode==='manual'?Math.max(0,Math.round(Number($(p+'-pp-amt').value)||0)):ppAuto(CTX[p]&&CTX[p]()).amt;
+  return {amt:amt,mode:mode};
+};
+// keep an AUTO amount fresh while the form changes
+function soft(p){ var on=$(p+'-pp-on'); if(on&&on.checked&&$(p+'-pp-mode')&&$(p+'-pp-mode').value==='auto') ppChange(p); }
+document.addEventListener('input',function(e){ var id=e.target&&e.target.id; if(id==='d-phone'||id==='d-name') soft('d'); else if(id==='r-phone'||id==='r-name') soft('r'); });
+['calcR'].forEach(function(n){ var o=window[n]; if(typeof o!=='function'||o.__pp) return; var w=function(){ var r=o.apply(this,arguments); try{ soft('r'); }catch(e){} return r; }; w.__pp=true; window[n]=w; });
+
+// ── rows on the bill: "முந்தைய நிலுவை" + "மொத்தம் செலுத்த வேண்டியது" ──
+window.ppAddTail=function(o,pend){
+  pend=Math.round(Number(pend)||0); if(!(pend>0)||!o||!o.tail) return o;
+  var t=o.tail, base=null, tot=null, paid=0, refund=0, paidFull=false;
+  t.forEach(function(r){
+    if((r.label===VB_L.bal||r.label===VB_L.finalBal)){ if(typeof r.value==='number') base=r.value; else paidFull=true; }
+    else if(r.label===VB_L.refund&&typeof r.value==='number') refund=r.value;
+    else if(r.label===VB_L.total&&typeof r.value==='number') tot=r.value;
+    else if((r.label===VB_L.extra||r.label===VB_L.paid)&&typeof r.value==='number') paid=r.value;
+  });
+  if(base===null){ base=paidFull?0:(refund>0?-refund:(tot!==null?Math.max(0,tot-paid):0)); }
+  t.push({label:VB_L.prevPend,value:pend});
+  t.push({label:VB_L.payAll,value:Math.max(0,Math.round(base+pend)),bold:true,color:'#c4161c'});
+  return o;
+};
+var _vb=window.vbBillOpts; if(typeof _vb==='function'&&!_vb.__pp){ var w=function(b){ var o=_vb.apply(this,arguments); try{ if(b&&Number(b.prevPending)>0) ppAddTail(o,b.prevPending); }catch(e){ console.error(e); } return o; }; w.__pp=true; window.vbBillOpts=w; }
+
+// site bill objects remember the pending of their saved batch
+var _so=window.buildSiteOutBillObj; if(typeof _so==='function'&&!_so.__pp){ window.buildSiteOutBillObj=function(site,date,items,batchNo){ var o=_so.apply(this,arguments); try{ var b=(site.outBatches||[])[batchNo-1]; if(b&&Number(b.prevPending)>0) o.prevPending=Number(b.prevPending); }catch(e){} return o; }; window.buildSiteOutBillObj.__pp=true; }
+var _si=window.buildSiteInBillObj; if(typeof _si==='function'&&!_si.__pp){ window.buildSiteInBillObj=function(site,date,items,payment,note,rentCharged,batchNo,damage,unloading,batchRef){ var o=_si.apply(this,arguments); try{ var b=(batchRef&&batchRef.prevPending!=null)?batchRef:(site.inBatches||[])[batchNo-1]; if(b&&Number(b.prevPending)>0) o.prevPending=Number(b.prevPending); }catch(e){} return o; }; window.buildSiteInBillObj.__pp=true; }
+
+// ── Site full bill (statement): switch + amount inside the Full Bill window ──
+window.ppSiteHTML=function(site){
+  var fp=site.fullPending||{}, h=ppHTML('sf',!!fp.on,fp.mode||'auto',fp.amt||0,'ppSiteSet()');
+  if(fp.on){ var a=ppAuto({phone:site.phone,name:site.customer,excl:[site.site_no],siteId:site.id}); h=h.replace('<div id="sf-pp-info" style="font-size:11.5px;color:#78350f;margin-top:6px"></div>','<div id="sf-pp-info" style="font-size:11.5px;color:#78350f;margin-top:6px">'+(fp.mode==='manual'?'Manual amount':'Auto: '+(a.amt>0?money(a.amt)+' — '+a.lines.join(' · '):'vera pending illa'))+'</div>'); }
+  return h; };
+CTX.sf=function(){ var s=(typeof findSiteById==='function'&&findSiteById(curSiteId))||{}; return {phone:s.phone,name:s.customer,excl:[s.site_no],siteId:s.id}; };
+window.ppSiteSet=function(){
+  var site=findSiteById(curSiteId); if(!site) return; var on=$('sf-pp-on').checked, mode=$('sf-pp-mode').value;
+  var a=ppAuto(CTX.sf()), amt=mode==='manual'?Math.max(0,Math.round(Number($('sf-pp-amt').value)||0)):a.amt;
+  site.fullPending={on:on,mode:mode,amt:amt}; saveDB();
+  viewSiteFullBill();
+};
+var _sf=window.vbSiteOptsFull; if(typeof _sf==='function'&&!_sf.__pp){ var w2=function(site){ var o=_sf.apply(this,arguments); try{ var fp=site&&site.fullPending; if(fp&&fp.on){ var amt=fp.mode==='manual'?Number(fp.amt)||0:ppAuto({phone:site.phone,name:site.customer,excl:[site.site_no],siteId:site.id}).amt; if(amt>0) ppAddTail(o,amt); } }catch(e){ console.error(e); } return o; }; w2.__pp=true; window.vbSiteOptsFull=w2; }
+// refresh the state text of freshly drawn blocks
+// edit screens
+window.ppEdBill=function(rec,excl){ CTX.ed=function(){ return {phone:val('ed-phone'),name:val('ed-name'),excl:excl||[]}; }; var a=Number(rec.prev_pending)||0; return ppHTML('ed',a>0,rec.prev_pending_mode||'auto',a); };
+window.ppEdSite=function(site,b){ CTX.ed=function(){ return {phone:site.phone,name:site.customer,excl:[site.site_no],siteId:site.id}; }; var a=Number(b.prevPending)||0; return ppHTML('ed',a>0,b.prevPendingMode||'auto',a); };
+function fillSlots(){ ['d','r'].forEach(function(x){ var s=$(x+'-pp-slot'); if(s&&!s.firstChild) s.innerHTML=ppHTML(x,false,'auto',0); }); }
+fillSlots(); window.addEventListener('load',fillSlots);
+window.ppInitBlock=function(p){ try{ if($(p+'-pp-on')&&$(p+'-pp-on').checked) ppChange(p,1); }catch(e){} };
+})();
+</script>
+
+<script type="text/vbcs-app">
+// ══════════════════════════════════════════════════════════════════════════
+// DASHBOARD — தமிழில் முழு விவரம்: வசூல் · செலவு · நிகர · நிலுவை · இருப்பு · யார்கிட்ட என்ன · ஊழியர்
+// ══════════════════════════════════════════════════════════════════════════
+(function(){
+if(window.__dashInit) return; window.__dashInit=true;
+var $=function(i){ return document.getElementById(i); };
+function R(v){ return '₹'+fmt(Math.round(Number(v)||0)); }
+function n0(v){ return Number(v)||0; }
+function pct(a,b){ return b>0?Math.round(a*100/b):0; }
+function bar(p,color){ return '<div style="background:#e2e8f0;border-radius:6px;height:8px;overflow:hidden;min-width:70px"><div style="width:'+Math.max(0,Math.min(100,p))+'%;height:100%;background:'+color+'"></div></div>'; }
+var PL={day:'இன்று',week:'இந்த வாரம்',month:'இந்த மாதம்',year:'இந்த வருடம்',all:'மொத்தம் (எல்லாம்)'};
+function kindTa(k){ k=String(k||''); if(k==='Advance') return 'முன்பணம் (Bill)'; if(k==='Paid at return') return 'Return-ல் செலுத்தியது'; if(k==='Balance settled') return 'பாக்கி வசூல்'; if(k.indexOf('Monthly rent')===0) return 'மாத வாடகை'; if(k==='Site payment') return 'Site Ledger வசூல்'; if(k==='Paid at site return') return 'Site Return-ல் செலுத்தியது'; return k||'மற்றவை'; }
+function sectionBox(title,sub,inner){ return '<div class="box"><div class="bh">'+title+(sub?' <span style="font-size:12px;color:var(--mu);font-weight:600">'+sub+'</span>':'')+'</div>'+inner+'</div>'; }
+function tbl(head,rows,foot){
+  return '<div style="overflow-x:auto"><table><thead><tr>'+head.map(function(h,i){ return '<th'+(h.r?' style="text-align:right"':'')+'>'+(h.t||h)+'</th>'; }).join('')+'</tr></thead><tbody>'+(rows.length?rows.join(''):'<tr><td colspan="'+head.length+'" class="empty">விவரம் இல்லை</td></tr>')+(foot||'')+'</tbody></table></div>';
+}
+
+window.renderDashboard=function(period){
+  period=period||curDashPeriod||'all'; var T=td();
+  var lbl=PL[period]||'';
+  // ── வசூல் (money received) ──
+  var ci=buildCustIndex(), recv=[], bySrc={};
+  var vrOf={}; (DB.returns||[]).forEach(function(r){ vrOf[r.return_bill_no]=(n0(r.vrent)>0&&r.vrent_show!==false)?n0(r.vrent):0; });
+  ci.list.forEach(function(c){ c.pays.forEach(function(p){
+    if(!inPeriod(p.date,period)) return; var amt=n0(p.amount);
+    if(p.kind==='Paid at return') amt=Math.max(0,amt-(vrOf[p.ref]||0));   // vehicle rent is a separate record
+    if(!(amt>0)) return;
+    var k=kindTa(p.kind); bySrc[k]=bySrc[k]||{n:0,a:0}; bySrc[k].n++; bySrc[k].a+=amt;
+    recv.push({date:p.date,name:c.name,kind:k,amt:amt,method:p.method||'',ref:p.ref||''});
+  }); });
+  (DB.incomes||[]).forEach(function(x){ if(!inPeriod(x.date,period)) return; var a=n0(x.amount); if(!(a>0)) return; var k='மற்ற வருமானம்'; bySrc[k]=bySrc[k]||{n:0,a:0}; bySrc[k].n++; bySrc[k].a+=a; recv.push({date:toISODate(x.date)||x.date,name:x.source,kind:k,amt:a,method:'',ref:''}); });
+  var totalRecv=Object.keys(bySrc).reduce(function(s,k){ return s+bySrc[k].a; },0);
+  // ── செலவு (money spent) ──
+  var byCat={}, expTab=0;
+  (DB.expenses||[]).forEach(function(x){ if(!inPeriod(x.date,period)) return; var a=n0(x.amount); if(!(a>0)) return; var k=x.category||'மற்றவை'; byCat[k]=byCat[k]||{n:0,a:0}; byCat[k].n++; byCat[k].a+=a; expTab+=a; });
+  var salPaid=0, salN=0; (DB.salaries||[]).forEach(function(r){ try{ ensurePayments(r); }catch(e){} (r.payments||[]).forEach(function(p){ if(inPeriod(p.date,period)){ salPaid+=n0(p.amount); salN++; } }); });
+  var mtPaid=0, mtN=0; (DB.maintenance||[]).forEach(function(m){ mtNorm(m); (m.payments||[]).forEach(function(p){ if(inPeriod(p.date,period)){ mtPaid+=n0(p.amount); mtN++; } }); });
+  var totalExp=expTab+salPaid+mtPaid, net=totalRecv-totalExp;
+  // ── நிலுவை (pending) ──
+  var pend=apiGetPending(), sc=0,rt=0,st=0; pend.pending.forEach(function(p){ if(p.type==='SITE') st+=p.balance; else if(p.type==='RETURN') rt+=p.balance; else sc+=p.balance; });
+  var od=(typeof odList==='function'?odList():[]).reduce(function(s,d){ return s+odRem(d); },0);
+  var overdue=pend.pending.filter(function(p){ return p.overdue; });
+  // ── இருப்பு (stock) ──
+  var stockAll=getStockData('MAIN').concat(getStockData('SUB'));
+  var totPcs=0,outPcs=0,avPcs=0; stockAll.forEach(function(s){ totPcs+=n0(s.total); outPcs+=n0(s.out); avPcs+=n0(s.available); });
+  var lowStock=stockAll.filter(function(s){ return s.total>0&&(s.available/s.total)<0.15; });
+  var holders=(typeof csTopHolders==='function')?csTopHolders(9999):[];
+  // ── bills in period ──
+  var nD=(DB.sales||[]).filter(function(x){ return inPeriod(x.created_at||x.out_date,period); }).length;
+  var nR=(DB.returns||[]).filter(function(x){ return inPeriod(x.return_date,period); }).length;
+  var nSO=0,nSI=0; (DB.sites||[]).forEach(function(s){ (s.outBatches||[]).forEach(function(b){ if(inPeriod(b.date,period)) nSO++; }); (s.inBatches||[]).forEach(function(b){ if(inPeriod(b.date,period)) nSI++; }); });
+  var presentToday=(DB.attendance||[]).filter(function(a){ return a.date===T&&a.status==='Present'; }).length;
+  var absentToday=(DB.attendance||[]).filter(function(a){ return a.date===T&&a.status==='Absent'; }).length;
+  var halfToday=(DB.attendance||[]).filter(function(a){ return a.date===T&&a.status==='Half Day'; }).length;
+  var payrollDue=(DB.salaries||[]).reduce(function(s,x){ return s+n0(x.balance); },0);
+
+  // 1) top cards
+  var cards=[
+    {v:R(totalRecv),l:'💰 வசூல் ('+lbl+')',c:'var(--ok)'},
+    {v:R(totalExp),l:'🧾 செலவு ('+lbl+')',c:'var(--er)'},
+    {v:(net<0?'− ':'')+R(Math.abs(net)),l:'📈 நிகர மிச்சம் (வசூல் − செலவு)',c:net>=0?'var(--ok)':'var(--er)'},
+    {v:R(pend.total+od),l:'⏳ மொத்த நிலுவை (பாக்கி)',c:'var(--er)'},
+    {v:fmt(outPcs)+' pcs',l:'📤 வெளியே உள்ள பொருட்கள் ('+holders.length+' customer)',c:'#d97706'},
+    {v:fmt(avPcs)+' pcs',l:'📦 கையிருப்பு (இருப்பில் உள்ளது)',c:'var(--ok)'},
+    {v:overdue.length,l:'⏰ திருப்பித் தரத் தாமதம் (bills)',c:overdue.length?'var(--er)':'var(--ok)'},
+    {v:presentToday+' / '+DB.employees.length,l:'👷 இன்று வந்த ஊழியர்',c:'var(--pri-d)'}
+  ];
+  $('dash-main').innerHTML=cards.map(function(c){ return '<div class="dcard"><div class="dv" style="color:'+c.c+'">'+c.v+'</div><div class="dl" style="text-transform:none;font-size:12.5px">'+c.l+'</div></div>'; }).join('')+
+    '<div class="dcard" style="grid-column:1/-1;background:#f8fafc"><div class="dl" style="text-transform:none;font-size:13px;margin:0">📄 '+lbl+': Dispatch bill <b>'+nD+'</b> · Return bill <b>'+nR+'</b> · Site OUT <b>'+nSO+'</b> · Site IN <b>'+nSI+'</b></div></div>';
+
+  // 2) வசூல் + செலவு
+  var srcRows=Object.keys(bySrc).sort(function(a,b){ return bySrc[b].a-bySrc[a].a; }).map(function(k){ var x=bySrc[k]; return '<tr><td>'+esc(k)+'</td><td style="text-align:right">'+x.n+'</td><td style="text-align:right;font-weight:700">'+R(x.a)+'</td><td style="min-width:110px">'+bar(pct(x.a,totalRecv),'var(--ok)')+'</td></tr>'; });
+  var recent=recv.sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); }).slice(0,10).map(function(r){ return '<tr><td>'+fmtDate(r.date)+'</td><td>'+esc(r.name||'')+'</td><td>'+esc(r.kind)+'</td><td style="text-align:right;font-weight:700;color:var(--ok)">'+R(r.amt)+'</td><td>'+esc(r.method)+'</td></tr>'; });
+  var collBox=sectionBox('💰 வசூல் விவரம்','— '+lbl+' · மொத்தம் '+R(totalRecv),
+    tbl(['எங்கிருந்து',{t:'எண்ணிக்கை',r:1},{t:'தொகை',r:1},''],srcRows,srcRows.length?'<tr style="background:#f1f5f9;font-weight:800"><td>மொத்தம்</td><td></td><td style="text-align:right">'+R(totalRecv)+'</td><td></td></tr>':'')+
+    '<div style="font-weight:800;font-size:13px;margin:14px 0 6px">🕒 சமீபத்திய வசூல்</div>'+tbl(['தேதி','Customer','வகை',{t:'தொகை',r:1},'முறை'],recent));
+  var catRows=Object.keys(byCat).sort(function(a,b){ return byCat[b].a-byCat[a].a; }).map(function(k){ var x=byCat[k]; return '<tr><td>'+esc(k)+'</td><td style="text-align:right">'+x.n+'</td><td style="text-align:right;font-weight:700">'+R(x.a)+'</td><td style="min-width:110px">'+bar(pct(x.a,totalExp),'var(--er)')+'</td></tr>'; });
+  if(salPaid>0) catRows.push('<tr><td>👷 சம்பளம் (Payroll-ல் கொடுத்தது)</td><td style="text-align:right">'+salN+'</td><td style="text-align:right;font-weight:700">'+R(salPaid)+'</td><td>'+bar(pct(salPaid,totalExp),'#d97706')+'</td></tr>');
+  if(mtPaid>0) catRows.push('<tr><td>🛠️ பராமரிப்பு / பழுது (Maintenance-ல் கொடுத்தது)</td><td style="text-align:right">'+mtN+'</td><td style="text-align:right;font-weight:700">'+R(mtPaid)+'</td><td>'+bar(pct(mtPaid,totalExp),'#7c3aed')+'</td></tr>');
+  var expBox=sectionBox('🧾 செலவு விவரம்','— '+lbl+' · மொத்தம் '+R(totalExp),
+    tbl(['எதற்கு',{t:'எண்ணிக்கை',r:1},{t:'தொகை',r:1},''],catRows,catRows.length?'<tr style="background:#f1f5f9;font-weight:800"><td>மொத்தம்</td><td></td><td style="text-align:right">'+R(totalExp)+'</td><td></td></tr>':'')+
+    '<div class="note" style="margin-top:10px">வண்டி வாடகை (Vehicle rent) தனி record — இங்கே சேர்க்கப்படவில்லை. Expenses tab-ல் சம்பளம் / பராமரிப்பையும் போட்டிருந்தால் இரண்டு முறை கணக்காகலாம்.</div>');
+  $('dash-money').innerHTML='<div class="g2" style="gap:16px;align-items:start">'+collBox+expBox+'</div>';
+
+  // 3) நிலுவை
+  var due=ci.list.filter(function(c){ return c.outstanding>0; }).sort(function(a,b){ return b.outstanding-a.outstanding; }).slice(0,10).map(function(c){
+    var open=c.bills.filter(function(b){ return n0(b.balance)>0; }), old=open.reduce(function(m,b){ return (!m||String(b.date)<m)?String(b.date):m; },'');
+    return '<tr><td><b>'+esc(c.name||'')+'</b></td><td>'+esc(c.phone||'')+'</td><td style="text-align:right">'+open.length+'</td><td>'+(old?fmtDate(old):'—')+'</td><td style="text-align:right;font-weight:800;color:var(--er)">'+R(c.outstanding)+'</td></tr>'; });
+  $('dash-pend').innerHTML=
+    '<div class="dash-grid" style="margin-bottom:12px">'+
+    [['Small Construction bills',sc],['Return bills பாக்கி',rt],['Site Ledger பாக்கி',st],['பழைய நிலுவை (Old Dues)',od]].map(function(x){ return '<div class="dcard"><div class="dv" style="color:var(--er);font-size:20px">'+R(x[1])+'</div><div class="dl" style="text-transform:none;font-size:12.5px">'+x[0]+'</div></div>'; }).join('')+'</div>'+
+    '<div style="font-weight:800;font-size:13px;margin:6px 0">அதிக பாக்கி உள்ள Customers (Top 10)</div>'+tbl(['Customer','Phone',{t:'Bills',r:1},'பழைய bill',{t:'பாக்கி',r:1}],due);
+
+  // 4) இருப்பு + யார்கிட்ட என்ன
+  var stRows=stockAll.map(function(s){
+    var p=pct(s.available,s.total), col=s.available<=0?'var(--er)':(p<15?'#d97706':'var(--ok)');
+    return '<tr><td><b>'+esc(s.name)+'</b></td><td style="text-align:right">'+fmt(s.total)+'</td><td style="text-align:right;color:#d97706;font-weight:700">'+fmt(s.out)+'</td><td style="text-align:right;font-weight:800;color:'+col+'">'+fmt(s.available)+'</td><td style="min-width:120px">'+bar(p,col)+'</td><td>'+(s.available<=0?'<span style="color:var(--er);font-weight:700">இல்லை</span>':(p<15?'<span style="color:#d97706;font-weight:700">குறைவு</span>':'<span style="color:var(--ok)">நல்லது</span>'))+'</td></tr>'; });
+  var holdRows=holders.slice(0,8).map(function(c){ return '<tr><td><b>'+esc(c.name||'')+'</b></td><td>'+esc(c.phone||'')+'</td><td style="text-align:right;font-weight:800;color:var(--er)">'+fmt(c.t.pending)+' pcs</td><td style="text-align:right">'+(c.t.overdue?'<span style="color:var(--er);font-weight:700">'+fmt(c.t.overdue)+' தாமதம்</span>':'—')+'</td></tr>'; });
+  $('dash-stock').innerHTML='<div style="grid-column:1/-1;font-size:13px;margin-bottom:6px">மொத்தம் <b>'+fmt(totPcs)+'</b> pcs · வெளியே <b style="color:#d97706">'+fmt(outPcs)+'</b> · கையிருப்பு <b style="color:var(--ok)">'+fmt(avPcs)+'</b></div>'+
+    '<div style="grid-column:1/-1">'+tbl(['பொருள்',{t:'மொத்தம்',r:1},{t:'வெளியே',r:1},{t:'கையிருப்பு',r:1},'',''],stRows)+'</div>'+
+    '<div style="grid-column:1/-1;font-weight:800;font-size:13px;margin:14px 0 6px">📋 இப்போ யார்கிட்ட அதிக பொருள் உள்ளது (Top 8) — முழு விவரம்: <u style="cursor:pointer;color:var(--pri-d)" onclick="swMain(\'custstock\')">Customer Stock tab</u></div>'+
+    '<div style="grid-column:1/-1">'+tbl(['Customer','Phone',{t:'வெளியே',r:1},{t:'தாமதம்',r:1}],holdRows)+'</div>';
+
+  // 5) ஊழியர்
+  $('dash-emp').innerHTML='<div class="dash-grid">'+
+    [['மொத்த ஊழியர்',DB.employees.length,'var(--pri-d)'],['இன்று வந்தவர்',presentToday,'var(--ok)'],['இன்று வராதவர்',absentToday,'var(--er)'],['அரை நாள்',halfToday,'#d97706'],['சம்பள பாக்கி',R(payrollDue),'var(--wn)'],['சம்பளம் கொடுத்தது ('+lbl+')',R(salPaid),'var(--pri-d)']].map(function(x){ return '<div class="dcard"><div class="dv" style="color:'+x[2]+';font-size:20px">'+x[1]+'</div><div class="dl" style="text-transform:none;font-size:12.5px">'+x[0]+'</div></div>'; }).join('')+'</div>';
+
+  // 6) எச்சரிக்கைகள்
+  var alerts=[];
+  if(pend.count>0) alerts.push('💰 '+pend.count+' bill-ல் பாக்கி உள்ளது — மொத்தம் '+R(pend.total)+(od>0?' (+ பழைய நிலுவை '+R(od)+')':''));
+  else if(od>0) alerts.push('💰 பழைய நிலுவை '+R(od)+' பாக்கி உள்ளது.');
+  if(overdue.length>0) alerts.push('⏰ '+overdue.length+' bill-க்கு பொருட்கள் திருப்பித் தரும் தேதி தாண்டிவிட்டது.');
+  if(lowStock.length>0) alerts.push('📉 '+lowStock.length+' பொருள் கையிருப்பு குறைவு: '+lowStock.slice(0,6).map(function(s){ return s.name+' ('+s.available+')'; }).join(', '));
+  if(payrollDue>0) alerts.push('💵 சம்பள பாக்கி '+R(payrollDue)+' கொடுக்க வேண்டும்.');
+  var pm=DB.maintenance.filter(function(m){ return m.status!=='Completed'; }); if(pm.length>0) alerts.push('🛠️ '+pm.length+' பழுது வேலை இன்னும் முடியவில்லை.');
+  var um=DB.maintenance.map(mtNorm).filter(function(m){ return n0(m.cost)-n0(m.paid)>0.001; }); if(um.length>0) alerts.push('🔧 Maintenance பணம் பாக்கி: '+um.length+' record — '+R(um.reduce(function(s,m){ return s+n0(m.cost)-n0(m.paid); },0))+' (Maintenance payment baaki)');
+  $('dash-alerts').innerHTML=alerts.length?alerts.map(function(a){ return '<div class="note" style="border-color:var(--wn);background:#fff8ec;color:#8a5a06">'+a+'</div>'; }).join(''):'<div class="empty">எச்சரிக்கை எதுவும் இல்லை — எல்லாம் சரியாக உள்ளது ✅</div>';
+};
+})();
+</script>
+
 <!-- ══════════ NETBIRD NETWORK SYNC LAYER (replaces Supabase cloud layer) ══════════ -->
 <div id="vbcs-boot" style="position:fixed;inset:0;z-index:99999;background:#0f172a;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,'Segoe UI',sans-serif">
   <div style="font-size:30px;font-weight:800">Garuda Construction Service</div>
