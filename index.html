@@ -772,7 +772,7 @@ table.calc-tbl .badge{white-space:nowrap}
     <div class="box">
       <div class="bh">📋 Customer-wise Stock — யார்கிட்ட என்ன stock இருக்கு
         <span style="display:flex;gap:8px;flex-wrap:wrap">
-          <select id="cs-view" onchange="csRender()" style="padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px;font-weight:700"><option value="register">🧾 Daily Stock Register</option><option value="balance">👥 Customer Stock (register format)</option><option value="detail">📋 Detail view</option></select>
+          <select id="cs-view" onchange="csRender()" style="width:auto;max-width:300px;padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px;font-weight:700"><option value="register">🧾 Daily Stock Register</option><option value="balance">👥 Customer Stock (register format)</option><option value="detail">📋 Detail view</option></select>
           <button class="btn bo" onclick="csRender()">⟳ Refresh</button>
           <button class="btn bo" onclick="csToggleAll(true)">⊞ Expand all</button>
           <button class="btn bo" onclick="csToggleAll(false)">⊟ Collapse all</button>
@@ -9159,7 +9159,7 @@ function drawRegister(mx){
       regCells(by,function(v){ return '<td style="text-align:center;font-weight:700">'+(v?fmtN(v):'')+'</td>'; })+
       '<td style="font-size:12px">'+esc(r.ref)+(oth?'<br>'+oth:'')+'</td></tr>';
   }).join('');
-  mx.innerHTML=regTable(H,body)+(total>rows.length?'<div class="note">Latest '+rows.length+' of '+total+' entries shown. Use the search box to narrow down.</div>':'')+'<div class="note">Columns = your Stock list (Stock tab). Bill / Site no. is shown in Remarks.</div>';
+  mx.innerHTML=regTable(H,body)+(total>rows.length?'<div class="note">Latest '+rows.length+' of '+total+' entries shown. Use the search box to narrow down.</div>':'')+'<div class="note">Columns = your Stock list (Stock tab). Bill / Site no. is shown in Remarks. Download Excel / PDF gives the customer-wise detail.</div>';
 }
 function drawBalance(mx){
   regBuild();
@@ -9185,6 +9185,9 @@ window.csRender=function(){
   var mode=v.value||'register', det=mode==='detail';
   mx.style.display=det?'none':'block'; ls.style.display=det?'block':'none';
   var sm=$('cs-summary'); if(sm) sm.style.display=mode==='register'?'none':'';
+  // Expand / Collapse, Sort and Overdue only make sense for the detail cards, not for the register log
+  [].slice.call(document.querySelectorAll('#pane-custstock button[onclick^="csToggleAll"]')).forEach(function(b){ b.style.display=det?'':'none'; });
+  var so=$('cs-sort'), od=$('cs-od'); if(so) so.style.display=(mode==='register')?'none':''; if(od&&od.parentNode) od.parentNode.style.display=(mode==='register')?'none':'';
   if(mode==='register') drawRegister(mx); else if(mode==='balance') drawBalance(mx);
 };
 window.csTopHolders=function(n){ var B=csBuild(); var a=B.custs.map(function(c){ c.t=csTotals(c); return c; }).filter(function(c){ return c.t.pending>0; }).sort(function(x,y){ return y.t.pending-x.t.pending; }); return a.slice(0,n); };
